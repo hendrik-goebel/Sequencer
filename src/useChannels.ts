@@ -168,7 +168,12 @@ export function useChannels() {
   }
 
   function toggleMicrotones() {
-    currentChannel.value.microtonesEnabled = !currentChannel.value.microtonesEnabled
+    const channel = currentChannel.value
+    channel.microtonesEnabled = !channel.microtonesEnabled
+    if (!channel.microtonesEnabled) {
+      channel.additionalNotes = channel.additionalNotes.filter(note => Number.isInteger(note))
+      channel.excludedNotes = channel.excludedNotes.filter(note => Number.isInteger(note))
+    }
   }
 
   function toggleReduceNotes() {
