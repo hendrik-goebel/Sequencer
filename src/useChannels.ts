@@ -3,7 +3,7 @@ import { initMidi, listOutputs, listInputs, getOutput, getInput, selectOutput, s
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
 import { createChannel, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 
@@ -505,15 +505,17 @@ export function useChannels() {
   }
 
   function shiftChannelNotes(channel: typeof channels[number], direction: 1 | -1) {
-    const keyPitchClass = getKeyPitchClass(channel)
-    const scalePitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+    const octaveBase = 12 * (channel.octave + 1)
+    const activeToneMaterial = getToneMaterials(channel)
+    const activeOffsets = new Set(
+      activeToneMaterial.map(note => (note - octaveBase + 24) % 12)
+    )
     const shiftPitch = (pitch: number) => {
-      const fraction = pitch - Math.trunc(pitch)
-      let shifted = Math.trunc(pitch)
+      let shifted = pitch
       do {
-        shifted += direction
-      } while (!scalePitchClasses.includes((shifted % 12 + 12) % 12))
-      return shifted + fraction
+        shifted += direction * MICROTONAL_STEP
+      } while (!activeOffsets.has((shifted - octaveBase + 24) % 12))
+      return shifted
     }
 
     const shiftStep = (step: StepValue): StepValue => {
