@@ -521,8 +521,6 @@ export function useChannels() {
     }
 
     channel.notes = channel.notes.map(shiftPitch)
-    channel.additionalNotes = [...new Set(channel.additionalNotes.map(shiftPitch))].sort((a, b) => a - b)
-    channel.excludedNotes = [...new Set(channel.excludedNotes.map(shiftPitch))].sort((a, b) => a - b)
     channel.steps = channel.steps.map(shiftStep)
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
