@@ -37,6 +37,7 @@ export function createArpeggiator() {
   let stepPointer = 0
   let scanDirection = 1
   let steps: StepValue[] = [] // MIDI note numbers, chords, or -1 for rest
+  let velocities: number[] = []
   let loopLength = STEP_COUNT
   let clock: any = null
   let isPlaying = false
@@ -96,7 +97,7 @@ export function createArpeggiator() {
     const duration = isSustainedStep(stepValue) ? Math.max(1, stepValue.duration) : 1
     if (notesForStep.length) {
       notesForStep.forEach((note) => {
-        events.emit('note', { note, velocity: MIDI.VELOCITY_MAX, length: getNoteLengthMilliseconds() * duration })
+        events.emit('note', { note, velocity: velocities[currentStep] ?? MIDI.VELOCITY_MAX, length: getNoteLengthMilliseconds() * duration })
       })
     }
 
@@ -176,6 +177,7 @@ export function createArpeggiator() {
     steps = s
     stepPointer = stepPointer % Math.max(1, steps.length || loopLength)
   }
+  function setVelocities(v: number[]){ velocities = v }
   function setSubdivision(n:number){
     const quantisation = Math.max(1, Math.min(64, Math.floor(n)))
     subdivision = quantisation / 4
@@ -196,5 +198,5 @@ export function createArpeggiator() {
     return events.off(eventName, handler)
   }
 
-  return { start, startAlignedTo, stop, setBpm, setPattern, setNotes, setNoteLength, setSteps, getState, timeToNextTick, setLoopLength, setSubdivision, on, off }
+  return { start, startAlignedTo, stop, setBpm, setPattern, setNotes, setNoteLength, setSteps, setVelocities, getState, timeToNextTick, setLoopLength, setSubdivision, on, off }
 }

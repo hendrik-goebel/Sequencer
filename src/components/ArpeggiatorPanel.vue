@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import StepsGrid from './StepsGrid.vue'
 import LogPanel from './LogPanel.vue'
 import StepperControl from './StepperControl.vue'
+import VerticalSlider from './VerticalSlider.vue'
 import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
@@ -50,6 +51,10 @@ const displayedNotes = computed(() => props.channel?.reduceNotes
       <button type="button" class="microtones-button" :class="{ active: channel.microtonesEnabled }" :aria-pressed="channel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
       <button type="button" class="reduce-button" :class="{ active: channel.reduceNotes }" :aria-pressed="channel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
       <StepsGrid :notes="displayedNotes" :steps="channel.steps" :base="channel.base" :key-root="channel.key" :microtones-enabled="channel.microtonesEnabled" :additional-notes="channel.additionalNotes" :excluded-notes="channel.excludedNotes" :play-step="channel.playStep" :step-count="channel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+      <div class="velocity-row">
+        <span class="velocity-label">VELOCITY</span>
+        <VerticalSlider v-for="(velocity, index) in channel.velocities.slice(0, channel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
+      </div>
     </div>
     <div class="state-storage">
       <button class="variation-button" @click="$emit('channel-variation')">var</button>
@@ -137,6 +142,28 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 }
 .global-button.active { border-color: var(--teal); background: var(--teal-deep); color: var(--teal-soft); }
 .sequencer { overflow-x: auto; }
+.velocity-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  min-width: max-content;
+  margin-top: .45rem;
+  padding: .55rem 7px .35rem 87px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-control);
+}
+.velocity-label {
+  width: 72px;
+  flex: 0 0 72px;
+  margin-left: -80px;
+  margin-right: 8px;
+  color: var(--text-dim);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.velocity-row :deep(.vertical-slider) { width: 42px; flex: 0 0 42px; }
 .microtones-button {
   display: inline-flex;
   margin: 0 0 .55rem;

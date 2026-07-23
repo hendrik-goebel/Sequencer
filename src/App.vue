@@ -30,7 +30,7 @@
       :clock-outputs="clockOutputs" :clock-inputs="clockInputs" :clock-output-id="clockOutputId" :clock-input-id="clockInputId" :log="log"
       :stored-states="currentStoredStates"
       :active-stored-state-index="currentActiveStoredStateIndex"
-      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @toggle-play="togglePlay" @enable-midi="enableMidi"
+      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
       @select-output="(id)=>{ selectedOutputId = id }" @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="globalActions = !globalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
@@ -80,6 +80,7 @@ const {
   toggleMicrotones,
   toggleReduceNotes,
   cycleStep,
+  updateVelocity,
   clearNotes,
   playKeyboardNote,
   outputs,

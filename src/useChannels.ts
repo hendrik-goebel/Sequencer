@@ -198,6 +198,7 @@ export function useChannels() {
       } else {
         channel.steps[stepIndex] = channel.notes[idx]
       }
+
       channel.arpeggiator.setSteps(channel.steps)
       return
     }
@@ -256,6 +257,13 @@ export function useChannels() {
     channel.steps = newSteps
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+  }
+
+  function updateVelocity(payload: { index: number, value: number }) {
+    const channel = currentChannel.value
+    if (!Number.isInteger(payload.index) || payload.index < 0 || payload.index >= channel.loopLength) return
+    channel.velocities[payload.index] = Math.max(0, Math.min(127, Math.round(payload.value)))
+    channel.arpeggiator.setVelocities(channel.velocities)
   }
 
   function clearNotes(){
@@ -460,6 +468,13 @@ export function useChannels() {
       channel.steps = channel.steps.concat(addedSteps)
     }
     else if (channel.steps.length > newLen) channel.steps = channel.steps.slice(0, newLen)
+    if (channel.velocities.length < newLen) {
+      channel.velocities = channel.velocities.concat(
+        Array.from({ length: newLen - channel.velocities.length }, () => MIDI.VELOCITY_MAX)
+      )
+    } else if (channel.velocities.length > newLen) {
+      channel.velocities = channel.velocities.slice(0, newLen)
+    }
     channel.loopLength = newLen
     if (typeof channel.arpeggiator.setLoopLength === 'function') {
       channel.arpeggiator.setLoopLength(newLen)
@@ -561,6 +576,7 @@ export function useChannels() {
       additionalNotes: channel.additionalNotes.slice(),
       excludedNotes: channel.excludedNotes.slice(),
       steps: channel.steps.map(cloneStep),
+      velocities: channel.velocities.slice(),
       base: channel.base,
       octave: channel.octave,
       loopLength: channel.loopLength,
@@ -578,7 +594,8 @@ export function useChannels() {
       notes: state.notes.slice(),
       additionalNotes: state.additionalNotes?.slice(),
       excludedNotes: state.excludedNotes?.slice(),
-      steps: state.steps.map(cloneStep)
+      steps: state.steps.map(cloneStep),
+      velocities: state.velocities?.slice()
     }
   }
 
@@ -626,6 +643,7 @@ export function useChannels() {
       (!('additionalNotes' in value) || (Array.isArray(value.additionalNotes) && value.additionalNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
       (!('excludedNotes' in value) || (Array.isArray(value.excludedNotes) && value.excludedNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
       Array.isArray(value.steps) && value.steps.every(isStepValue) &&
+      (!('velocities' in value) || (Array.isArray(value.velocities) && value.velocities.every(velocity => typeof velocity === 'number' && Number.isFinite(velocity) && velocity >= 0 && velocity <= 127))) &&
       typeof value.base === 'number' && Number.isFinite(value.base) &&
       typeof value.octave === 'number' && Number.isFinite(value.octave) &&
       typeof value.loopLength === 'number' && Number.isFinite(value.loopLength) &&
@@ -676,6 +694,7 @@ export function useChannels() {
     channel.additionalNotes = state.additionalNotes?.slice() ?? []
     channel.excludedNotes = state.excludedNotes?.slice() ?? []
     channel.steps = state.steps.map(cloneStep)
+    channel.velocities = state.velocities?.slice() ?? channel.velocities.map(() => MIDI.VELOCITY_MAX)
     channel.base = state.base
     channel.octave = state.octave
     channel.loopLength = state.loopLength
@@ -691,6 +710,7 @@ export function useChannels() {
     channel.arpeggiator.setLoopLength(channel.loopLength)
     channel.arpeggiator.setSubdivision(channel.quantisation)
     channel.arpeggiator.setSteps(channel.steps)
+    channel.arpeggiator.setVelocities(channel.velocities)
   }
 
   function loadSeed(seedKey: string): string | null {
@@ -815,6 +835,7 @@ export function useChannels() {
     toggleMicrotones,
     toggleReduceNotes,
     cycleStep,
+    updateVelocity,
     clearNotes,
     createVariation,
     createGlobalVariation,

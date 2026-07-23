@@ -17,6 +17,7 @@ export interface Channel {
   excludedNotes: number[]
   reduceNotes: boolean
   steps: StepValue[]
+  velocities?: number[]
   base: number
   octave: number
   loopLength: number
@@ -65,6 +66,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     excludedNotes: [] as number[],
     reduceNotes: false,
     steps: DEFAULT_STEPS.slice() as StepValue[],
+    velocities: Array.from({ length: DEFAULT_STEPS.length }, () => 127),
     base: DEFAULT_BASE,
     octave: DEFAULT_ARPEGGIO_OCTAVE,
     loopLength: DEFAULT_STEPS.length,
@@ -113,6 +115,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
   // ensure arpeggiator knows about the initial loop length before setting steps
   if (typeof arpeggiator.setLoopLength === 'function') arpeggiator.setLoopLength(channel.loopLength)
   arpeggiator.setSteps(channel.steps)
+  arpeggiator.setVelocities(channel.velocities)
   // apply initial quantisation to arpeggiator
   if (typeof arpeggiator.setSubdivision === 'function') arpeggiator.setSubdivision(channel.quantisation)
   return channel
