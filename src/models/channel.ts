@@ -66,7 +66,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     excludedNotes: [] as number[],
     reduceNotes: false,
     steps: DEFAULT_STEPS.slice() as StepValue[],
-    velocities: Array.from({ length: DEFAULT_STEPS.length }, () => 127),
+    velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
     octave: DEFAULT_ARPEGGIO_OCTAVE,
     loopLength: DEFAULT_STEPS.length,
