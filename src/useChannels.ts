@@ -520,17 +520,15 @@ export function useChannels() {
   }
 
   function shiftChannelNotes(channel: typeof channels[number], direction: 1 | -1) {
-    const octaveBase = 12 * (channel.octave + 1)
-    const activeToneMaterial = getToneMaterials(channel)
-    const activeOffsets = new Set(
-      activeToneMaterial.map(note => (note - octaveBase + 24) % 12)
-    )
+    const activeToneMaterial = getToneMaterials(channel).sort((a, b) => a - b)
     const shiftPitch = (pitch: number) => {
-      let shifted = pitch
-      do {
-        shifted += direction * MICROTONAL_STEP
-      } while (!activeOffsets.has((shifted - octaveBase + 24) % 12))
-      return shifted
+      const candidates = activeToneMaterial
+        .flatMap(note => Array.from({ length: 21 }, (_, octave) => note + (octave - 10) * 12))
+        .sort((a, b) => a - b)
+      const next = direction > 0
+        ? candidates.find(note => note > pitch)
+        : [...candidates].reverse().find(note => note < pitch)
+      return next ?? pitch
     }
 
     const shiftStep = (step: StepValue): StepValue => {
