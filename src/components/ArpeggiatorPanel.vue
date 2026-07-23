@@ -17,7 +17,10 @@ const fullNotes = computed(() => {
   return Array.from({ length }, (_, i) => base.value + i * step).reverse()
 })
 const displayedNotes = computed(() => props.channel?.reduceNotes
-  ? fullNotes.value.filter(note => toneMaterialNotes.value.includes(note))
+  ? fullNotes.value.filter(note =>
+      toneMaterialNotes.value.includes(note) ||
+      (props.channel.microtonesEnabled &&
+        toneMaterialNotes.value.includes(note - MICROTONAL_STEP)))
   : fullNotes.value)
 </script>
 

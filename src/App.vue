@@ -73,7 +73,7 @@ const {
   toggleChannelPlay,
   toggleMute,
   toggleMuteAll,
-  createVariation,
+  createVariation: createVariationForChannel,
   updateMidiChannel,
   togglePlay,
   toggleToneMaterial,
@@ -100,7 +100,7 @@ const {
   updateArpeggioLength,
   updateQuantisation,
   updateArpeggioOctave,
-  shiftCurrentChannelNotes,
+  shiftCurrentChannelNotes: shiftCurrentChannelNotesForChannel,
   shiftAllChannelNotes,
   currentStoredStates,
   currentActiveStoredStateIndex,
@@ -119,12 +119,12 @@ const globalActions = ref(false)
 
 function handleVariation() {
   if (globalActions.value) createGlobalVariation()
-  else createVariation(currentIndex.value)
+  else createVariationForChannel(currentIndex.value)
 }
 
 function handleShiftNotes(direction: 1 | -1) {
   if (globalActions.value) shiftAllChannelNotes(direction)
-  else shiftCurrentChannelNotes(direction)
+  else shiftCurrentChannelNotesForChannel(direction)
 }
 
 function handleStoreState() {
@@ -144,9 +144,9 @@ useKeyboard({
   toggleMute,
   toggleMuteAll,
   togglePlay,
-  createVariation,
+  createVariation: handleVariation,
   createGlobalVariation,
-  shiftCurrentChannelNotes,
+  shiftCurrentChannelNotes: handleShiftNotes,
   playKeyboardNote
 })
 onMounted(() => {
