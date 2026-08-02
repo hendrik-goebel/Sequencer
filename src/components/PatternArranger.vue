@@ -26,7 +26,7 @@
         @dragstart="slot !== null && startSlotDrag(index, $event)"
         @dragover.prevent
         @drop.prevent="handleDrop(index, $event)"
-        @click="slot !== null && clearSlot(index)"
+        @dblclick="slot !== null && clearSlot(index)"
         :aria-label="slot === null ? `Empty arrangement slot ${index + 1}` : `Slot ${index + 1}, state ${slot + 1}`"
       >
         <span class="slot-number">{{ slot === null ? '' : slot + 1 }}</span>

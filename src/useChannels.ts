@@ -877,6 +877,13 @@ export function useChannels() {
     normalizeArrangement(currentChannel.value)
   }
 
+  function clearStoredState(index: number) {
+    storedStates.value[currentIndex.value][index] = null
+    if (activeStoredStateIndexes.value[currentIndex.value] === index) {
+      activeStoredStateIndexes.value[currentIndex.value] = null
+    }
+  }
+
   function storeAllStates() {
     channels.forEach((channel, channelIndex) => {
       const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
@@ -889,6 +896,15 @@ export function useChannels() {
       activeStoredStateIndexes.value[channelIndex] = index
       const state = storedStates.value[channelIndex][index]
       if (state) applyChannelState(channel, state)
+    })
+  }
+
+  function clearAllStoredStates(index: number) {
+    channels.forEach((_, channelIndex) => {
+      storedStates.value[channelIndex][index] = null
+      if (activeStoredStateIndexes.value[channelIndex] === index) {
+        activeStoredStateIndexes.value[channelIndex] = null
+      }
     })
   }
 
@@ -1039,8 +1055,10 @@ export function useChannels() {
     currentActiveArrangementStateIndex,
     storeCurrentState,
     applyStoredState,
+    clearStoredState,
     storeAllStates,
     applyAllStoredStates,
+    clearAllStoredStates,
     setArrangementSlot,
     moveArrangementSlot,
     clearArrangementSlot,

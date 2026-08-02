@@ -40,6 +40,7 @@ defineEmits<{
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
   (event: 'apply-stored-state', index: number): void
+  (event: 'clear-stored-state', index: number): void
   (event: 'arrangement-assign-slot', payload: { slotIndex: number, stateIndex: number }): void
   (event: 'arrangement-move-slot', payload: { fromIndex: number, toIndex: number }): void
   (event: 'arrangement-clear-slot', slotIndex: number): void
@@ -156,6 +157,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
           :aria-label="`${storedStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
           @dragstart="storedStates[index] && startStoredStateDrag(index, $event)"
           @click="$emit('apply-stored-state', index)"
+          @dblclick="$emit('clear-stored-state', index)"
         >{{ index + 1 }}</button>
       </div>
     </div>

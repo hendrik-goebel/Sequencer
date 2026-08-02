@@ -37,7 +37,7 @@
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="globalActions = !globalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
-      @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState"
+      @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
@@ -123,8 +123,10 @@ const {
   currentActiveArrangementStateIndex,
   storeCurrentState,
   applyStoredState,
+  clearStoredState,
   storeAllStates,
   applyAllStoredStates,
+  clearAllStoredStates,
   setArrangementSlot,
   moveArrangementSlot,
   clearArrangementSlot,
@@ -158,6 +160,11 @@ function handleStoreState() {
 function handleApplyStoredState(index: number) {
   if (globalActions.value) applyAllStoredStates(index)
   else applyStoredState(index)
+}
+
+function handleClearStoredState(index: number) {
+  if (globalActions.value) clearAllStoredStates(index)
+  else clearStoredState(index)
 }
 
 function handleArrangementAssignSlot(payload: { slotIndex: number, stateIndex: number }) {
