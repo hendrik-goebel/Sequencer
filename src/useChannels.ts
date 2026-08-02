@@ -668,6 +668,56 @@ export function useChannels() {
     channels.forEach(channel => shiftChannelNotes(channel, direction))
   }
 
+  function shiftStoredStateNotes(channel: typeof channels[number], state: StoredArpeggiatorState, direction: 1 | -1) {
+    const activeToneMaterial = getToneMaterials(channel).sort((a, b) => a - b)
+    const candidates = activeToneMaterial
+      .flatMap(note => Array.from({ length: 21 }, (_, octave) => note + (octave - 10) * 12))
+      .sort((a, b) => a - b)
+    const shiftPitch = (pitch: number) => {
+      const next = direction > 0
+        ? candidates.find(note => note > pitch)
+        : [...candidates].reverse().find(note => note < pitch)
+      return next ?? pitch
+    }
+    const shiftStep = (step: StepValue): StepValue => {
+      if (typeof step === 'number') return step >= 0 ? shiftPitch(step) : step
+      if (Array.isArray(step)) return step.map(shiftPitch)
+      if (isSustainedStep(step)) {
+        return { ...step, notes: Array.isArray(step.notes) ? step.notes.map(shiftPitch) : shiftPitch(step.notes) }
+      }
+      return step
+    }
+
+    state.notes = state.notes.map(shiftPitch)
+    state.additionalNotes = state.additionalNotes?.map(shiftPitch)
+    state.excludedNotes = state.excludedNotes?.map(shiftPitch)
+    state.steps = state.steps.map(shiftStep)
+  }
+
+  function shiftArrangementNotes(channelIndex: number, direction: 1 | -1) {
+    const channel = channels[channelIndex]
+    if (!channel) return
+    const shiftedStateIndexes = new Set<number>()
+    channel.arrangementSlots.forEach(stateIndex => {
+      if (stateIndex === null || shiftedStateIndexes.has(stateIndex)) return
+      const state = storedStates.value[channelIndex][stateIndex]
+      if (!state) return
+      shiftedStateIndexes.add(stateIndex)
+      shiftStoredStateNotes(channel, state, direction)
+    })
+    const activeStateIndex = channel.arrangementIndex === null
+      ? null
+      : channel.arrangementSlots[channel.arrangementIndex]
+    const activeState = activeStateIndex === null || activeStateIndex === undefined
+      ? null
+      : storedStates.value[channelIndex][activeStateIndex]
+    if (activeState) applyChannelState(channel, activeState, { applyPlaybackMode: false })
+  }
+
+  function shiftAllArrangementNotes(direction: 1 | -1) {
+    channels.forEach((_, index) => shiftArrangementNotes(index, direction))
+  }
+
   function cloneStep(step: StepValue): StepValue {
     if (isSustainedStep(step)) {
       return {
@@ -1049,6 +1099,8 @@ export function useChannels() {
     updateArpeggioOctave,
     shiftCurrentChannelNotes,
     shiftAllChannelNotes,
+    shiftArrangementNotes,
+    shiftAllArrangementNotes,
     storedStates,
     currentStoredStates,
     currentActiveStoredStateIndex,

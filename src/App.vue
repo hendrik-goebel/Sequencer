@@ -118,6 +118,8 @@ const {
   updateArpeggioOctave,
   shiftCurrentChannelNotes: shiftCurrentChannelNotesForChannel,
   shiftAllChannelNotes,
+  shiftArrangementNotes,
+  shiftAllArrangementNotes,
   currentStoredStates,
   currentActiveStoredStateIndex,
   currentActiveArrangementStateIndex,
@@ -148,8 +150,14 @@ function handleVariation() {
 }
 
 function handleShiftNotes(direction: 1 | -1) {
-  if (globalActions.value) shiftAllChannelNotes(direction)
-  else shiftCurrentChannelNotesForChannel(direction)
+  if (globalActions.value) {
+    if (currentChannel.value.playbackMode === 'arrangement') shiftAllArrangementNotes(direction)
+    else shiftAllChannelNotes(direction)
+  } else if (currentChannel.value.playbackMode === 'arrangement') {
+    shiftArrangementNotes(currentIndex.value, direction)
+  } else {
+    shiftCurrentChannelNotesForChannel(direction)
+  }
 }
 
 function handleStoreState() {
