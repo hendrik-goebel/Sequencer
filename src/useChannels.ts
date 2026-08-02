@@ -107,7 +107,7 @@ export function useChannels() {
 
     channel.arrangementIndex = slotIndex
     activeStoredStateIndexes.value[channel.id] = storedStateIndex
-    applyChannelState(channel, state)
+    applyChannelState(channel, state, { applyPlaybackMode: false })
   }
 
   function primeArrangement(channel: Channel) {
@@ -786,7 +786,8 @@ export function useChannels() {
     }
   }
 
-  function applyChannelState(channel: typeof channels[number], state: StoredArpeggiatorState) {
+  function applyChannelState(channel: typeof channels[number], state: StoredArpeggiatorState, options?: { applyPlaybackMode?: boolean }) {
+    const shouldApplyPlaybackMode = options?.applyPlaybackMode !== false
     channel.bpm = state.bpm
     channel.tempoOffset = state.tempoOffset
     channel.pattern = state.pattern
@@ -803,7 +804,7 @@ export function useChannels() {
     channel.quantisation = state.quantisation
     channel.key = state.key
     channel.microtonesEnabled = state.microtonesEnabled ?? false
-    channel.playbackMode = state.playbackMode ?? 'state'
+    if (shouldApplyPlaybackMode) channel.playbackMode = state.playbackMode ?? 'state'
 
     channel.arpeggiator.setBpm(channel.bpm)
     channel.arpeggiator.setPattern(channel.pattern)

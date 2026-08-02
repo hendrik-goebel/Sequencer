@@ -29,7 +29,7 @@
         @click="slot !== null && clearSlot(index)"
         :aria-label="slot === null ? `Empty arrangement slot ${index + 1}` : `Slot ${index + 1}, state ${slot + 1}`"
       >
-        <span class="slot-number">{{ index + 1 }}</span>
+        <span class="slot-number">{{ slot === null ? '' : slot + 1 }}</span>
       </button>
     </div>
   </section>
@@ -142,9 +142,10 @@ function clearSlot(slotIndex: number) {
 }
 
 .enabled-button.active {
-  border-color: var(--lavender);
-  background: var(--lavender-deep);
-  color: var(--lavender-soft);
+  border-color: var(--teal);
+  background: var(--teal-deep);
+  color: var(--teal-soft);
+  box-shadow: 0 0 10px rgba(104, 216, 195, .22);
 }
 
 .slots {

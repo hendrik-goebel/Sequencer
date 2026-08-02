@@ -173,6 +173,7 @@ function handleTogglePlaybackMode() {
   const nextMode = currentChannel.value.playbackMode === 'arrangement' ? 'state' : 'arrangement'
   if (globalActions.value) channels.forEach((_, index) => setPlaybackMode(index, nextMode))
   else setPlaybackMode(currentIndex.value, nextMode)
+  if (nextMode === 'arrangement' && !currentChannel.value.playing) togglePlay()
 }
 
 useKeyboard({
