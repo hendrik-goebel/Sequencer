@@ -30,6 +30,7 @@ export interface Channel {
   key: CircleOfFifthsKey
   microtonesEnabled: boolean
   playbackMode: PlaybackMode
+  followArrangementView: boolean
   arrangementSlots: ArrangementSlot[]
   arrangementIndex: number | null
   arpeggiator: ReturnType<typeof createArpeggiator>
@@ -55,6 +56,7 @@ export interface StoredArpeggiatorState {
   key: CircleOfFifthsKey
   microtonesEnabled?: boolean
   playbackMode?: PlaybackMode
+  followArrangementView?: boolean
 }
 
 export function createChannel(index: number, selectedOutputId: Ref<string | null>, log: Ref<string[]>, onLoop?: (channel: Channel) => void) : Channel {
@@ -83,6 +85,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     key: 'C' as CircleOfFifthsKey,
     microtonesEnabled: false,
     playbackMode: 'state' as PlaybackMode,
+    followArrangementView: false,
     arrangementSlots: Array.from({ length: 8 }, () => null) as ArrangementSlot[],
     arrangementIndex: null as number | null,
     arpeggiator,

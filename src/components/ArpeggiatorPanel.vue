@@ -13,24 +13,76 @@ const props = defineProps<{
   log: string[]
   storedStates: (StoredArpeggiatorState | null)[]
   activeStoredStateIndex: number | null
+  activeArrangementStoredStateIndex: number | null
   arrangementSlots: (number | null)[]
   activeArrangementSlotIndex: number | null
+  followArrangementView?: boolean
   globalActions: boolean
+}>()
+
+defineEmits<{
+  (event: 'toggle-follow-arrangement-view'): void
+  (event: 'toggle-global-actions'): void
+  (event: 'toggle-playback-mode'): void
+  (event: 'toggle-tone-material', note: number): void
+  (event: 'cycle-step', payload: any): void
+  (event: 'update-velocity', payload: { index: number, value: number }): void
+  (event: 'toggle-play'): void
+  (event: 'enable-midi'): void
+  (event: 'update-pattern', value: any): void
+  (event: 'update-noteLength', value: number): void
+  (event: 'update-octave', value: number): void
+  (event: 'clear-notes'): void
+  (event: 'update-loop-length', value: number): void
+  (event: 'update-quant', value: number): void
+  (event: 'update-arpeggio-length', value: number): void
+  (event: 'channel-variation'): void
+  (event: 'shift-notes', direction: 1 | -1): void
+  (event: 'store-state'): void
+  (event: 'apply-stored-state', index: number): void
+  (event: 'arrangement-assign-slot', payload: { slotIndex: number, stateIndex: number }): void
+  (event: 'arrangement-move-slot', payload: { fromIndex: number, toIndex: number }): void
+  (event: 'arrangement-clear-slot', slotIndex: number): void
 }>()
 
 const ARRANGEMENT_DRAG_TYPE = 'application/x-arpeggiator-arrangement'
 
-const base = computed(() => props.channel?.base ?? DEFAULT_BASE)
-const toneMaterialNotes = computed(() => props.channel ? getToneMaterials(props.channel) : [])
+const displayedStoredStateIndex = computed(() =>
+  props.followArrangementView && props.channel?.playbackMode === 'arrangement'
+    ? (props.activeArrangementStoredStateIndex ?? props.activeStoredStateIndex)
+    : props.activeStoredStateIndex
+)
+
+const visualChannel = computed(() => {
+  if (!props.channel) return props.channel
+  if (props.channel.playbackMode !== 'arrangement' || props.followArrangementView) return props.channel
+
+  const selectedState = props.storedStates[props.activeStoredStateIndex ?? -1]
+  if (!selectedState) return props.channel
+
+  return {
+    ...props.channel,
+    ...selectedState,
+    additionalNotes: selectedState.additionalNotes ?? [],
+    excludedNotes: selectedState.excludedNotes ?? [],
+    velocities: selectedState.velocities ?? props.channel.velocities,
+    playStep: null,
+    playbackMode: props.channel.playbackMode,
+    followArrangementView: props.followArrangementView
+  }
+})
+
+const base = computed(() => visualChannel.value?.base ?? DEFAULT_BASE)
+const toneMaterialNotes = computed(() => visualChannel.value ? getToneMaterials(visualChannel.value) : [])
 const fullNotes = computed(() => {
-  const step = props.channel?.microtonesEnabled ? MICROTONAL_STEP : 1
-  const length = props.channel?.microtonesEnabled ? KEYBOARD_OCTAVE_SIZE * 2 : KEYBOARD_OCTAVE_SIZE
+  const step = visualChannel.value?.microtonesEnabled ? MICROTONAL_STEP : 1
+  const length = visualChannel.value?.microtonesEnabled ? KEYBOARD_OCTAVE_SIZE * 2 : KEYBOARD_OCTAVE_SIZE
   return Array.from({ length }, (_, i) => base.value + i * step).reverse()
 })
-const displayedNotes = computed(() => props.channel?.reduceNotes
+const displayedNotes = computed(() => visualChannel.value?.reduceNotes
   ? fullNotes.value.filter(note =>
       toneMaterialNotes.value.includes(note) ||
-      (props.channel.microtonesEnabled &&
+      (visualChannel.value?.microtonesEnabled &&
         toneMaterialNotes.value.includes(note - MICROTONAL_STEP)))
   : fullNotes.value)
 
@@ -50,18 +102,18 @@ function startStoredStateDrag(index: number, event: DragEvent) {
   <section class="arpeggiator-panel">
     <div class="controls">
       <div class="channel-section-heading">
-        <span class="module-index">{{ String(channel.id + 1).padStart(2, '0') }}</span>
-        <h3>CHANNEL {{ channel.id + 1 }}</h3>
+        <span class="module-index">{{ String(visualChannel.id + 1).padStart(2, '0') }}</span>
+        <h3>CHANNEL {{ visualChannel.id + 1 }}</h3>
       </div>
       <div class="control-section sequence-section">
         <h3>SEQUENCE</h3>
-        <label>Pattern <StepperControl :value="channel.pattern" :values="['up', 'down', 'updown', 'random']" @update:value="$emit('update-pattern', $event)" /></label>
-        <label>Arpeggio length <span class="value-input"><input type="number" :value="channel.arpeggioLength" @input="$emit('update-arpeggio-length', +$event.target.value)" min="1" max="32" /><small>NOTES</small></span></label>
-        <label>Quantisation <StepperControl :value="channel.quantisation" :values="[1, 2, 3, 4, 5, 8, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
-        <label>Loop length <span class="value-input"><input type="number" :value="channel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
-        <label>Note length <StepperControl :value="channel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
+        <label>Pattern <StepperControl :value="visualChannel.pattern" :values="['up', 'down', 'updown', 'random']" @update:value="$emit('update-pattern', $event)" /></label>
+        <label>Arpeggio length <span class="value-input"><input type="number" :value="visualChannel.arpeggioLength" @input="$emit('update-arpeggio-length', +$event.target.value)" min="1" max="32" /><small>NOTES</small></span></label>
+        <label>Quantisation <StepperControl :value="visualChannel.quantisation" :values="[1, 2, 3, 4, 5, 8, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
+        <label>Loop length <span class="value-input"><input type="number" :value="visualChannel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
+        <label>Note length <StepperControl :value="visualChannel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
         <label>Octave
-          <select :value="channel.octave" @change="$emit('update-octave', +$event.target.value)">
+          <select :value="visualChannel.octave" @change="$emit('update-octave', +$event.target.value)">
             <option v-for="octave in ARPEGGIO_OCTAVES" :key="octave" :value="octave">C{{ octave }}</option>
           </select>
         </label>
@@ -69,12 +121,12 @@ function startStoredStateDrag(index: number, event: DragEvent) {
     </div>
 
     <div class="sequencer">
-      <button type="button" class="microtones-button" :class="{ active: channel.microtonesEnabled }" :aria-pressed="channel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
-      <button type="button" class="reduce-button" :class="{ active: channel.reduceNotes }" :aria-pressed="channel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
-      <StepsGrid :notes="displayedNotes" :steps="channel.steps" :base="channel.base" :key-root="channel.key" :microtones-enabled="channel.microtonesEnabled" :additional-notes="channel.additionalNotes" :excluded-notes="channel.excludedNotes" :play-step="channel.playStep" :step-count="channel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+      <button type="button" class="microtones-button" :class="{ active: visualChannel.microtonesEnabled }" :aria-pressed="visualChannel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
+      <button type="button" class="reduce-button" :class="{ active: visualChannel.reduceNotes }" :aria-pressed="visualChannel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
+      <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>
-        <VerticalSlider v-for="(velocity, index) in channel.velocities.slice(0, channel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
+        <VerticalSlider v-for="(velocity, index) in visualChannel.velocities.slice(0, visualChannel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
       </div>
     </div>
     <div class="state-storage">
@@ -83,13 +135,23 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       <button class="variation-button" aria-label="Move arpeggio notes down" @click="$emit('shift-notes', -1)">down</button>
       <button class="store-button" @click="$emit('store-state')">Store state</button>
       <button class="clear-button" @click="$emit('clear-notes')">Clear grid</button>
+      <button
+        class="follow-button"
+        :class="{ active: followArrangementView && channel.playbackMode === 'arrangement' }"
+        :aria-pressed="followArrangementView && channel.playbackMode === 'arrangement'"
+        :disabled="channel.playbackMode !== 'arrangement'"
+        @click="$emit('toggle-follow-arrangement-view')"
+      >follow</button>
       <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
       <div class="stored-states">
         <button
           v-for="(_, index) in storedStates"
           :key="index"
           class="stored-state-button"
-          :class="{ active: index === activeStoredStateIndex, empty: !storedStates[index] }"
+          :class="{
+            active: index === displayedStoredStateIndex,
+            empty: !storedStates[index]
+          }"
           :draggable="Boolean(storedStates[index])"
           :aria-label="`${storedStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
           @dragstart="storedStates[index] && startStoredStateDrag(index, $event)"
@@ -148,6 +210,19 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
   letter-spacing: .06em; cursor: pointer;
 }
 .global-button.active { border-color: var(--teal); background: var(--teal-deep); color: var(--teal-soft); }
+.follow-button {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: .5rem .7rem;
+  background: #1c2a33;
+  color: var(--text-muted);
+  font-size: .56rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+.follow-button.active { border-color: var(--lavender); background: var(--lavender-deep); color: var(--lavender-soft); }
+.follow-button:disabled { opacity: .45; cursor: not-allowed; }
 .sequencer { overflow-x: auto; }
 .velocity-row {
   display: flex;

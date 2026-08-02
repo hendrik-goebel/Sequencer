@@ -14,6 +14,7 @@ interface SeedChannelState extends StoredArpeggiatorState {
   midiChannel: number
   muted: boolean
   playbackMode?: PlaybackMode
+  followArrangementView?: boolean
   arrangementSlots?: (number | null)[]
   arrangementIndex?: number | null
 }
@@ -49,6 +50,8 @@ export function useChannels() {
   const currentStoredStates = computed(() => storedStates.value[currentIndex.value])
   const activeStoredStateIndexes = ref<(number | null)[]>(channels.map(() => 0))
   const currentActiveStoredStateIndex = computed(() => activeStoredStateIndexes.value[currentIndex.value])
+  const activeArrangementStateIndexes = ref<(number | null)[]>(channels.map(() => null))
+  const currentActiveArrangementStateIndex = computed(() => activeArrangementStateIndexes.value[currentIndex.value])
 
   const globalBpm = ref(DEFAULT_BPM)
   const globalKey = ref<CircleOfFifthsKey>('C')
@@ -90,23 +93,26 @@ export function useChannels() {
   function applyArrangementSlot(channel: Channel, slotIndex: number | null) {
     if (slotIndex === null) {
       channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
       return
     }
 
     const storedStateIndex = channel.arrangementSlots[slotIndex]
     if (!isValidStoredStateIndex(storedStateIndex)) {
       channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
       return
     }
 
     const state = storedStates.value[channel.id][storedStateIndex]
     if (!state) {
       channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
       return
     }
 
     channel.arrangementIndex = slotIndex
-    activeStoredStateIndexes.value[channel.id] = storedStateIndex
+    activeArrangementStateIndexes.value[channel.id] = storedStateIndex
     applyChannelState(channel, state, { applyPlaybackMode: false })
   }
 
@@ -277,6 +283,18 @@ export function useChannels() {
     if (mode === 'arrangement' && channel.playing) {
       primeArrangement(channel)
     }
+  }
+
+  function toggleFollowArrangementView(index: number) {
+    const channel = channels[index]
+    if (!channel || channel.playbackMode !== 'arrangement') return
+    channel.followArrangementView = !channel.followArrangementView
+  }
+
+  function setFollowArrangementView(index: number, enabled: boolean) {
+    const channel = channels[index]
+    if (!channel || channel.playbackMode !== 'arrangement') return
+    channel.followArrangementView = enabled
   }
 
   function cycleStep(payload:any){
@@ -699,6 +717,7 @@ export function useChannels() {
       ...snapshotChannelState(channel),
       midiChannel: channel.midiChannel,
       muted: channel.muted,
+      followArrangementView: channel.followArrangementView,
       arrangementSlots: channel.arrangementSlots.slice(),
       arrangementIndex: channel.arrangementIndex
     }
@@ -757,6 +776,7 @@ export function useChannels() {
       value.midiChannel >= 1 && value.midiChannel <= 16 &&
       typeof value.muted === 'boolean' &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode)) &&
+      (!('followArrangementView' in value) || typeof value.followArrangementView === 'boolean') &&
       (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && value.arrangementSlots.length === STORED_STATE_COUNT && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
       (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < STORED_STATE_COUNT))
   }
@@ -804,6 +824,7 @@ export function useChannels() {
     channel.quantisation = state.quantisation
     channel.key = state.key
     channel.microtonesEnabled = state.microtonesEnabled ?? false
+    channel.followArrangementView = channel.followArrangementView ?? false
     if (shouldApplyPlaybackMode) channel.playbackMode = state.playbackMode ?? 'state'
 
     channel.arpeggiator.setBpm(channel.bpm)
@@ -829,6 +850,7 @@ export function useChannels() {
       channel.midiChannel = state.midiChannel
       channel.muted = state.muted
       channel.playbackMode = state.playbackMode ?? 'state'
+      channel.followArrangementView = state.followArrangementView ?? false
       channel.arrangementSlots = createArrangementSlots(state.arrangementSlots)
       channel.arrangementIndex = typeof state.arrangementIndex === 'number'
         ? Math.max(0, Math.min(STORED_STATE_COUNT - 1, Math.floor(state.arrangementIndex)))
@@ -892,11 +914,13 @@ export function useChannels() {
     target.key = source.key
     target.microtonesEnabled = source.microtonesEnabled
     target.playbackMode = source.playbackMode
+    target.followArrangementView = source.followArrangementView
     target.arrangementSlots = source.arrangementSlots.slice()
     target.arrangementIndex = source.arrangementIndex
     target.muted = source.muted
     storedStates.value[targetIndex] = storedStates.value[sourceIndex].map(cloneStoredState)
     activeStoredStateIndexes.value[targetIndex] = activeStoredStateIndexes.value[sourceIndex]
+    activeArrangementStateIndexes.value[targetIndex] = activeArrangementStateIndexes.value[sourceIndex]
 
     target.arpeggiator.setBpm(target.bpm)
     target.arpeggiator.setPattern(target.pattern)
@@ -1012,6 +1036,7 @@ export function useChannels() {
     storedStates,
     currentStoredStates,
     currentActiveStoredStateIndex,
+    currentActiveArrangementStateIndex,
     storeCurrentState,
     applyStoredState,
     storeAllStates,
@@ -1021,6 +1046,8 @@ export function useChannels() {
     clearArrangementSlot,
     setArrangementSlots,
     setPlaybackMode,
+    toggleFollowArrangementView,
+    setFollowArrangementView,
     createSeed,
     loadSeed,
     copyChannel,

@@ -29,6 +29,8 @@
     <ArpeggiatorPanel :channel="currentChannel" :global-actions="globalActions" :log="log"
       :stored-states="currentStoredStates"
       :active-stored-state-index="currentActiveStoredStateIndex"
+      :active-arrangement-stored-state-index="currentActiveArrangementStateIndex"
+      :follow-arrangement-view="currentChannel.followArrangementView"
       :arrangement-slots="currentChannel.arrangementSlots"
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
@@ -40,6 +42,7 @@
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
       @toggle-playback-mode="handleTogglePlaybackMode"
+      @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
 
     <OutputRoutingPanel :outputs="outputs" :selected-output-id="selectedOutputId" @select-output="(id) => { selectedOutputId = id }" />
@@ -117,6 +120,7 @@ const {
   shiftAllChannelNotes,
   currentStoredStates,
   currentActiveStoredStateIndex,
+  currentActiveArrangementStateIndex,
   storeCurrentState,
   applyStoredState,
   storeAllStates,
@@ -125,6 +129,8 @@ const {
   moveArrangementSlot,
   clearArrangementSlot,
   setPlaybackMode,
+  toggleFollowArrangementView,
+  setFollowArrangementView,
   createSeed,
   loadSeed,
   copyChannel
@@ -173,7 +179,16 @@ function handleTogglePlaybackMode() {
   const nextMode = currentChannel.value.playbackMode === 'arrangement' ? 'state' : 'arrangement'
   if (globalActions.value) channels.forEach((_, index) => setPlaybackMode(index, nextMode))
   else setPlaybackMode(currentIndex.value, nextMode)
+  if (nextMode === 'arrangement') {
+    if (globalActions.value) channels.forEach((_, index) => setFollowArrangementView(index, true))
+    else setFollowArrangementView(currentIndex.value, true)
+  }
   if (nextMode === 'arrangement' && !currentChannel.value.playing) togglePlay()
+}
+
+function handleToggleFollowArrangementView() {
+  if (globalActions.value) channels.forEach((_, index) => toggleFollowArrangementView(index))
+  else toggleFollowArrangementView(currentIndex.value)
 }
 
 useKeyboard({
