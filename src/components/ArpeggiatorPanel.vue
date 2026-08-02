@@ -36,7 +36,7 @@ const displayedNotes = computed(() => props.channel?.reduceNotes
         <label>Pattern <StepperControl :value="channel.pattern" :values="['up', 'down', 'updown', 'random']" @update:value="$emit('update-pattern', $event)" /></label>
         <label>Arpeggio length <span class="value-input"><input type="number" :value="channel.arpeggioLength" @input="$emit('update-arpeggio-length', +$event.target.value)" min="1" max="32" /><small>NOTES</small></span></label>
         <label>Quantisation <StepperControl :value="channel.quantisation" :values="[1, 2, 3, 4, 5, 8, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
-        <label>Loop length <span class="value-input"><input type="number" :value="channel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="64" /><small>STEPS</small></span></label>
+        <label>Loop length <span class="value-input"><input type="number" :value="channel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
         <label>Note length <StepperControl :value="channel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
         <label>Octave
           <select :value="channel.octave" @change="$emit('update-octave', +$event.target.value)">

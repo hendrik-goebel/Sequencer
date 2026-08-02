@@ -3,7 +3,7 @@ import { initMidi, listOutputs, listInputs, getOutput, getInput, selectOutput, s
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
 import { createChannel, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 
@@ -459,14 +459,10 @@ export function useChannels() {
   }
   function updateLoopLength(length:number){
     const channel = currentChannel.value
-    const newLen = Math.max(1, Math.min(64, Math.floor(length)))
+    const newLen = Math.max(1, Math.min(MAX_LOOP_LENGTH, Math.floor(length)))
     if (!channel.steps) channel.steps = []
     if (channel.steps.length < newLen) {
-      const arpeggio = channel.steps.filter(step => typeof step === 'number' && step >= 0)
-      const addedSteps = Array.from(
-        { length: newLen - channel.steps.length },
-        (_, index) => arpeggio.length ? arpeggio[index % arpeggio.length] : -1
-      )
+      const addedSteps = Array.from({ length: newLen - channel.steps.length }, () => -1)
       channel.steps = channel.steps.concat(addedSteps)
     }
     else if (channel.steps.length > newLen) channel.steps = channel.steps.slice(0, newLen)

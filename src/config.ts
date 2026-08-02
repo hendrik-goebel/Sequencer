@@ -10,6 +10,7 @@ export const DEFAULT_QUANT = 4
 export const CHANNEL_COUNT = 8
 export const STORED_STATE_COUNT = 8
 export const STEP_COUNT = 16
+export const MAX_LOOP_LENGTH = 2048
 export const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
 export const OCTAVE_OFFSET = -1
 export const DEFAULT_STEPS = [60,64,67,60,64,67,60,64,60,64,67,60,64,67,60,64]

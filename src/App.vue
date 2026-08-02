@@ -211,6 +211,10 @@ h2 { color: var(--text-muted); font-size: .7rem; letter-spacing: .16em; }
 .master-control { gap: 1.2rem; }
 .master-control label { color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .13em; }
 .input-wrap { display: flex; align-items: center; margin-top: .3rem; }
+:global(input[type="number"]::-webkit-inner-spin-button) {
+  width: 1.25rem;
+  height: 1.75rem;
+}
 .master-control input {
   width: 4rem; padding: .35rem .1rem; border: 0; border-bottom: 1px solid var(--line-strong);
   background: transparent; color: #f3fbff; font: 700 1.1rem ui-monospace, monospace; outline: 0;

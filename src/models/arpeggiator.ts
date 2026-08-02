@@ -1,4 +1,4 @@
-import { DEFAULT_BPM, DEFAULT_NOTE_LENGTH, STEP_COUNT, DEFAULT_QUANT, noteLengthToMilliseconds } from '../config'
+import { DEFAULT_BPM, DEFAULT_NOTE_LENGTH, STEP_COUNT, MAX_LOOP_LENGTH, DEFAULT_QUANT, noteLengthToMilliseconds } from '../config'
 import { createMidiClock } from './midiClock'
 import { MIDI } from '../midi/constants'
 import { createEventEmitter } from '../utils/eventEmitter'
@@ -73,7 +73,7 @@ export function createArpeggiator() {
   }
 
   function setLoopLength(n:number){
-    loopLength = Math.max(1, Math.min(64, Math.floor(n)))
+    loopLength = Math.max(1, Math.min(MAX_LOOP_LENGTH, Math.floor(n)))
     // resize steps array to match loopLength
     if (!steps) steps = []
     if (steps.length < loopLength) {
