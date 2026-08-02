@@ -110,7 +110,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
         <h3>SEQUENCE</h3>
         <label>Pattern <StepperControl :value="visualChannel.pattern" :values="['up', 'down', 'updown', 'random']" @update:value="$emit('update-pattern', $event)" /></label>
         <label>Arpeggio length <span class="value-input"><input type="number" :value="visualChannel.arpeggioLength" @input="$emit('update-arpeggio-length', +$event.target.value)" min="1" max="32" /><small>NOTES</small></span></label>
-        <label>Quantisation <StepperControl :value="visualChannel.quantisation" :values="[1, 2, 3, 4, 5, 8, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
+        <label>Quantisation <StepperControl :value="visualChannel.quantisation" :values="[1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
         <label>Loop length <span class="value-input"><input type="number" :value="visualChannel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
         <label>Note length <StepperControl :value="visualChannel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
         <label>Octave

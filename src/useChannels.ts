@@ -491,7 +491,7 @@ export function useChannels() {
 
   function initializeRandomState() {
     const patterns: Pattern[] = ['up', 'down', 'updown', 'random']
-    const quantisations = [3, 4, 6, 8, 16]
+    const quantisations = [3, 4, 6, 8, 9, 12, 16]
     const randomBpm = 80 + Math.floor(Math.random() * 51)
     const randomKey = KEYS[Math.floor(Math.random() * KEYS.length)]
 
