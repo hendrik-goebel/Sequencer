@@ -1,4 +1,4 @@
-import { CIRCLE_OF_FIFTHS_KEYS, MAJOR_SCALE_OFFSETS } from '../config'
+import { KEYS, MAJOR_SCALE_OFFSETS } from '../config'
 
 export interface ToneMaterialSource {
   key: string
@@ -10,7 +10,7 @@ export interface ToneMaterialSource {
 
 export function getToneMaterials(channel: ToneMaterialSource) {
   const octaveBase = 12 * (channel.octave + 1)
-  const keyPitchClass = CIRCLE_OF_FIFTHS_KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
+  const keyPitchClass = KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
 
   const keyPitches = MAJOR_SCALE_OFFSETS.map(offset => octaveBase + ((keyPitchClass + offset) % 12))
   return [...new Set([...keyPitches, ...channel.additionalNotes])]

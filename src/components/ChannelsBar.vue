@@ -13,7 +13,7 @@
       </button>
       <label class="key-control">Key
         <select :value="ch.key" @click.stop @change.stop="$emit('update-key', i, $event.target.value)">
-          <option v-for="key in CIRCLE_OF_FIFTHS_KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
+          <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
         </select>
       </label>
       <label class="midi-channel-control">MIDI channel
@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { CIRCLE_OF_FIFTHS_KEYS } from '../config'
+import { KEYS } from '../config'
 
 const emit = defineEmits<{
   (event: 'select', index: number): void

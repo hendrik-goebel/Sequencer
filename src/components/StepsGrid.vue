@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
+import { KEYS, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
 import { isSustainedStep, StepValue, stepNotes } from '../models/arpeggiator'
 
 const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const base = props.base ?? DEFAULT_BASE
-const keyPitchClass = computed(() => CIRCLE_OF_FIFTHS_KEYS.find(key => key.name === props.keyRoot)?.pitchClass ?? 0)
+const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot)?.pitchClass ?? 0)
 const keyPitchClasses = computed(() => new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
 
 const stepCountArray = computed(() => {

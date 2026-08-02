@@ -21,7 +21,7 @@ export const ARPEGGIO_OCTAVES = Array.from({ length: 8 }, (_, index) => index + 
 export const KEYBOARD_OCTAVE_SIZE = 12
 export const MAJOR_SCALE_OFFSETS = [0, 2, 4, 5, 7, 9, 11]
 export const MICROTONAL_STEP = 0.5
-export const CIRCLE_OF_FIFTHS_KEYS = [
+export const KEYS = [
   { name: 'C', pitchClass: 0 },
   { name: 'G', pitchClass: 7 },
   { name: 'D', pitchClass: 2 },
@@ -35,7 +35,7 @@ export const CIRCLE_OF_FIFTHS_KEYS = [
   { name: 'Bb', pitchClass: 10 },
   { name: 'F', pitchClass: 5 }
 ] as const
-export type CircleOfFifthsKey = typeof CIRCLE_OF_FIFTHS_KEYS[number]['name']
+export type CircleOfFifthsKey = typeof KEYS[number]['name']
 
 // German keyboard layout: white keys span C through D in the next octave,
 // while the black keys continue the chromatic sequence between them.

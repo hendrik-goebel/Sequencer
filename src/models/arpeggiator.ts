@@ -22,6 +22,7 @@ export function stepNotes(value: StepValue | undefined): number[] {
 
 export type ArpeggiatorEvents = {
   tick: { stepIndex: number, noteIndex: number, pattern: Pattern }
+  loop: { stepIndex: number }
   note: { note: number, velocity: number, length: number }
   start: { stepIndex: number }
   stop: void
@@ -103,6 +104,10 @@ export function createArpeggiator() {
 
     // advance pointers
     stepPointer = (stepPointer + 1) % Math.max(1, loopLength)
+
+    if (currentStep === stepCount - 1) {
+      events.emit('loop', { stepIndex: stepPointer })
+    }
 
     // also advance pattern index for pattern-based arpeggios (keeps legacy behavior usable)
     advanceIndexForPattern()

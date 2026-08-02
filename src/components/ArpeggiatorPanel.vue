@@ -3,11 +3,22 @@ import { computed } from 'vue'
 import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
+import PatternArranger from './PatternArranger.vue'
 import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
-const props = defineProps<{ channel: any, log: string[], storedStates: (StoredArpeggiatorState | null)[], activeStoredStateIndex: number | null, globalActions: boolean }>()
+const props = defineProps<{
+  channel: any
+  log: string[]
+  storedStates: (StoredArpeggiatorState | null)[]
+  activeStoredStateIndex: number | null
+  arrangementSlots: (number | null)[]
+  activeArrangementSlotIndex: number | null
+  globalActions: boolean
+}>()
+
+const ARRANGEMENT_DRAG_TYPE = 'application/x-arpeggiator-arrangement'
 
 const base = computed(() => props.channel?.base ?? DEFAULT_BASE)
 const toneMaterialNotes = computed(() => props.channel ? getToneMaterials(props.channel) : [])
@@ -22,6 +33,17 @@ const displayedNotes = computed(() => props.channel?.reduceNotes
       (props.channel.microtonesEnabled &&
         toneMaterialNotes.value.includes(note - MICROTONAL_STEP)))
   : fullNotes.value)
+
+function encodeDragPayload(kind: 'stored-state', index: number) {
+  return `${kind}:${index}`
+}
+
+function startStoredStateDrag(index: number, event: DragEvent) {
+  const payload = encodeDragPayload('stored-state', index)
+  event.dataTransfer?.setData(ARRANGEMENT_DRAG_TYPE, payload)
+  event.dataTransfer?.setData('text/plain', payload)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
+}
 </script>
 
 <template>
@@ -66,13 +88,24 @@ const displayedNotes = computed(() => props.channel?.reduceNotes
           :key="index"
           class="stored-state-button"
           :class="{ active: index === activeStoredStateIndex, empty: !storedStates[index] }"
+          :draggable="Boolean(storedStates[index])"
           :aria-label="`${storedStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
+          @dragstart="storedStates[index] && startStoredStateDrag(index, $event)"
           @click="$emit('apply-stored-state', index)"
         >{{ index + 1 }}</button>
       </div>
       <button class="clear-button" @click="$emit('clear-notes')">Clear grid</button>
       <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
     </div>
+    <PatternArranger
+      :arrangement-slots="arrangementSlots"
+      :active-arrangement-slot-index="activeArrangementSlotIndex"
+      :playback-mode="channel.playbackMode"
+      @assign-slot="$emit('arrangement-assign-slot', $event)"
+      @move-slot="$emit('arrangement-move-slot', $event)"
+      @clear-slot="$emit('arrangement-clear-slot', $event)"
+      @toggle-playback-mode="$emit('toggle-playback-mode')"
+    />
   </section>
 </template>
 

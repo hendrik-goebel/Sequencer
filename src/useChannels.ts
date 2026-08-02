@@ -1,9 +1,9 @@
 import { ref, computed, watch } from 'vue'
 import { initMidi, listOutputs, listInputs, getOutput, getInput, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
-import { createChannel, StoredArpeggiatorState } from './models/channel'
+import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CIRCLE_OF_FIFTHS_KEYS, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 
@@ -13,6 +13,9 @@ const ADDITIONAL_VARIATION_CHANGE_CHANCE = 0.35
 interface SeedChannelState extends StoredArpeggiatorState {
   midiChannel: number
   muted: boolean
+  playbackMode?: PlaybackMode
+  arrangementSlots?: (number | null)[]
+  arrangementIndex?: number | null
 }
 
 interface AppSeed {
@@ -29,7 +32,14 @@ export function useChannels() {
   const log = ref<string[]>([])
   const outputs = ref<{id:string,name:string}[]>([])
   const selectedOutputId = ref<string | null>(null)
-  const channels = Array.from({length: CHANNEL_COUNT}, (_, index)=> createChannel(index, selectedOutputId, log))
+  function createArrangementSlots(source?: (number | null)[]) {
+    return Array.from({ length: STORED_STATE_COUNT }, (_, index) => {
+      const value = source?.[index]
+      return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < STORED_STATE_COUNT ? value : null
+    })
+  }
+
+  const channels = Array.from({length: CHANNEL_COUNT}, (_, index)=> createChannel(index, selectedOutputId, log, handleChannelLoop))
   const currentIndex = ref(0)
   const currentChannel = computed(() => channels[currentIndex.value])
   const allMuted = computed(() => channels.every(channel => channel.muted))
@@ -56,8 +66,95 @@ export function useChannels() {
     onStop: () => { if (globalPlaying.value) stopAll() }
   })
 
+  function isValidStoredStateIndex(value: unknown) {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < STORED_STATE_COUNT
+  }
+
+  function isPlaybackMode(value: unknown): value is PlaybackMode {
+    return value === 'state' || value === 'arrangement'
+  }
+
+  function findArrangementSlot(channel: Channel, fromIndex: number | null) {
+    const slots = channel.arrangementSlots
+    if (!slots.length) return null
+    const start = fromIndex === null ? -1 : fromIndex
+    for (let offset = 1; offset <= slots.length; offset++) {
+      const slotIndex = (start + offset) % slots.length
+      const storedStateIndex = slots[slotIndex]
+      if (!isValidStoredStateIndex(storedStateIndex)) continue
+      if (storedStates.value[channel.id][storedStateIndex]) return slotIndex
+    }
+    return null
+  }
+
+  function applyArrangementSlot(channel: Channel, slotIndex: number | null) {
+    if (slotIndex === null) {
+      channel.arrangementIndex = null
+      return
+    }
+
+    const storedStateIndex = channel.arrangementSlots[slotIndex]
+    if (!isValidStoredStateIndex(storedStateIndex)) {
+      channel.arrangementIndex = null
+      return
+    }
+
+    const state = storedStates.value[channel.id][storedStateIndex]
+    if (!state) {
+      channel.arrangementIndex = null
+      return
+    }
+
+    channel.arrangementIndex = slotIndex
+    activeStoredStateIndexes.value[channel.id] = storedStateIndex
+    applyChannelState(channel, state)
+  }
+
+  function primeArrangement(channel: Channel) {
+    const firstSlot = findArrangementSlot(channel, null)
+    if (firstSlot !== null) applyArrangementSlot(channel, firstSlot)
+    else channel.arrangementIndex = null
+  }
+
+  function advanceArrangement(channel: Channel) {
+    const nextSlot = findArrangementSlot(channel, channel.arrangementIndex)
+    if (nextSlot === null) {
+      channel.arrangementIndex = null
+      return
+    }
+    applyArrangementSlot(channel, nextSlot)
+  }
+
+  function normalizeArrangement(channel: Channel) {
+    if (channel.arrangementIndex === null) {
+      channel.arrangementIndex = findArrangementSlot(channel, null)
+      return
+    }
+    const currentStoredStateIndex = channel.arrangementSlots[channel.arrangementIndex]
+    if (!isValidStoredStateIndex(currentStoredStateIndex)) {
+      const nextSlot = findArrangementSlot(channel, channel.arrangementIndex)
+      channel.arrangementIndex = nextSlot
+    }
+  }
+
+  function handleChannelLoop(channel: Channel) {
+    if (channel.playbackMode !== 'arrangement') return
+    advanceArrangement(channel)
+  }
+
+  function startChannelPlayback(channel: Channel, referenceChannel?: Channel) {
+    if (channel.playbackMode === 'arrangement') {
+      primeArrangement(channel)
+    }
+    if (referenceChannel && typeof channel.arpeggiator.startAlignedTo === 'function') {
+      channel.arpeggiator.startAlignedTo(referenceChannel.arpeggiator)
+    } else {
+      channel.arpeggiator.start()
+    }
+  }
+
   function getKeyPitchClass(channel: typeof channels[number]) {
-    return CIRCLE_OF_FIFTHS_KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
+    return KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
   }
 
   function isKeyTone(channel: typeof channels[number], note: number) {
@@ -77,7 +174,7 @@ export function useChannels() {
   }
 
   function updateGlobalKey(key: string) {
-    if (!CIRCLE_OF_FIFTHS_KEYS.some(candidate => candidate.name === key)) return
+    if (!KEYS.some(candidate => candidate.name === key)) return
     globalKey.value = key as CircleOfFifthsKey
     channels.forEach(channel => { channel.key = globalKey.value })
   }
@@ -96,7 +193,9 @@ export function useChannels() {
       midiClockOutput.stop()
     } else {
       // start all channels
-      channels.forEach(channel => { if (!channel.playing) channel.arpeggiator.start() })
+      channels.forEach(channel => {
+        if (!channel.playing) startChannelPlayback(channel)
+      })
       globalPlaying.value = true
       syncMidiClockTransport()
     }
@@ -116,12 +215,7 @@ export function useChannels() {
     } else {
       // if any other channel is playing, align this channel's first note to them
       const referenceChannel = channels.find(c => c.playing && c !== channel)
-      if (referenceChannel && typeof channel.arpeggiator.startAlignedTo === 'function') {
-        channel.arpeggiator.startAlignedTo(referenceChannel.arpeggiator)
-      } else {
-        channel.arpeggiator.start()
-      }
-
+      startChannelPlayback(channel, referenceChannel)
     }
     syncMidiClockTransport()
   }
@@ -141,11 +235,7 @@ export function useChannels() {
     if (channel.playing) { channel.arpeggiator.stop() }
     else {
       const referenceChannel = channels.find(c => c.playing && c !== channel)
-      if (referenceChannel && typeof channel.arpeggiator.startAlignedTo === 'function') {
-        channel.arpeggiator.startAlignedTo(referenceChannel.arpeggiator)
-      } else {
-        channel.arpeggiator.start()
-      }
+      startChannelPlayback(channel, referenceChannel)
       syncMidiClockTransport()
     }
   }
@@ -178,6 +268,15 @@ export function useChannels() {
 
   function toggleReduceNotes() {
     currentChannel.value.reduceNotes = !currentChannel.value.reduceNotes
+  }
+
+  function setPlaybackMode(index: number, mode: PlaybackMode) {
+    const channel = channels[index]
+    if (!channel) return
+    channel.playbackMode = mode
+    if (mode === 'arrangement' && channel.playing) {
+      primeArrangement(channel)
+    }
   }
 
   function cycleStep(payload:any){
@@ -376,7 +475,7 @@ export function useChannels() {
     const patterns: Pattern[] = ['up', 'down', 'updown', 'random']
     const quantisations = [3, 4, 6, 8, 16]
     const randomBpm = 80 + Math.floor(Math.random() * 51)
-    const randomKey = CIRCLE_OF_FIFTHS_KEYS[Math.floor(Math.random() * CIRCLE_OF_FIFTHS_KEYS.length)]
+    const randomKey = KEYS[Math.floor(Math.random() * KEYS.length)]
 
     setGlobalBpm(randomBpm)
     updateGlobalKey(randomKey.name)
@@ -427,7 +526,6 @@ export function useChannels() {
     clockOutputs.value = outputs.value.filter(output => output.id !== SINE_OUTPUT_ID)
     if (clockOutputs.value.length) setClockOutput(clockOutputs.value[0].id)
     clockInputs.value = listInputs()
-    if (clockInputs.value.length) setClockInput(clockInputs.value[0].id)
     if (outputs.value.length) selectedOutputId.value = outputs.value[0].id
   }
 
@@ -450,7 +548,7 @@ export function useChannels() {
   function updatePattern(pattern:any){ currentChannel.value.arpeggiator.setPattern(pattern); currentChannel.value.pattern = pattern }
   function updateChannelKey(index: number, key: string) {
     const channel = channels[index]
-    if (!channel || !CIRCLE_OF_FIFTHS_KEYS.some(candidate => candidate.name === key)) return
+    if (!channel || !KEYS.some(candidate => candidate.name === key)) return
     channel.key = key as CircleOfFifthsKey
   }
   function updateNoteLength(length:number){ currentChannel.value.arpeggiator.setNoteLength(length); currentChannel.value.noteLength = length }
@@ -579,7 +677,8 @@ export function useChannels() {
       arpeggioLength: channel.arpeggioLength,
       quantisation: channel.quantisation,
       key: channel.key,
-      microtonesEnabled: channel.microtonesEnabled
+      microtonesEnabled: channel.microtonesEnabled,
+      playbackMode: channel.playbackMode
     }
   }
 
@@ -599,7 +698,9 @@ export function useChannels() {
     return {
       ...snapshotChannelState(channel),
       midiChannel: channel.midiChannel,
-      muted: channel.muted
+      muted: channel.muted,
+      arrangementSlots: channel.arrangementSlots.slice(),
+      arrangementIndex: channel.arrangementIndex
     }
   }
 
@@ -645,15 +746,19 @@ export function useChannels() {
       typeof value.loopLength === 'number' && Number.isFinite(value.loopLength) &&
       typeof value.arpeggioLength === 'number' && Number.isFinite(value.arpeggioLength) &&
       typeof value.quantisation === 'number' && Number.isFinite(value.quantisation) &&
-      typeof value.key === 'string' && CIRCLE_OF_FIFTHS_KEYS.some(key => key.name === value.key) &&
-      (!('microtonesEnabled' in value) || typeof value.microtonesEnabled === 'boolean')
+      typeof value.key === 'string' && KEYS.some(key => key.name === value.key) &&
+      (!('microtonesEnabled' in value) || typeof value.microtonesEnabled === 'boolean') &&
+      (!('playbackMode' in value) || isPlaybackMode(value.playbackMode))
   }
 
   function isSeedChannel(value: unknown): value is SeedChannelState {
     return isStoredState(value) && isRecord(value) &&
       typeof value.midiChannel === 'number' && Number.isInteger(value.midiChannel) &&
       value.midiChannel >= 1 && value.midiChannel <= 16 &&
-      typeof value.muted === 'boolean'
+      typeof value.muted === 'boolean' &&
+      (!('playbackMode' in value) || isPlaybackMode(value.playbackMode)) &&
+      (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && value.arrangementSlots.length === STORED_STATE_COUNT && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
+      (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < STORED_STATE_COUNT))
   }
 
   function decodeSeed(seedKey: string): AppSeed | null {
@@ -664,7 +769,7 @@ export function useChannels() {
           value.version !== 1 ||
           typeof value.globalBpm !== 'number' || !Number.isFinite(value.globalBpm) ||
           typeof value.globalKey !== 'string' ||
-          !CIRCLE_OF_FIFTHS_KEYS.some(key => key.name === value.globalKey) ||
+          !KEYS.some(key => key.name === value.globalKey) ||
           typeof value.currentIndex !== 'number' || !Number.isInteger(value.currentIndex) ||
           !Array.isArray(value.channels) || value.channels.length !== channels.length ||
           !value.channels.every(isSeedChannel) ||
@@ -698,6 +803,7 @@ export function useChannels() {
     channel.quantisation = state.quantisation
     channel.key = state.key
     channel.microtonesEnabled = state.microtonesEnabled ?? false
+    channel.playbackMode = state.playbackMode ?? 'state'
 
     channel.arpeggiator.setBpm(channel.bpm)
     channel.arpeggiator.setPattern(channel.pattern)
@@ -715,14 +821,20 @@ export function useChannels() {
 
     setGlobalBpm(seed.globalBpm)
     updateGlobalKey(seed.globalKey)
+    storedStates.value = seed.storedStates.map(states => states.map(cloneStoredState))
+    activeStoredStateIndexes.value = seed.activeStoredStateIndexes.slice()
     seed.channels.forEach((state, index) => {
       const channel = channels[index]
       channel.midiChannel = state.midiChannel
       channel.muted = state.muted
+      channel.playbackMode = state.playbackMode ?? 'state'
+      channel.arrangementSlots = createArrangementSlots(state.arrangementSlots)
+      channel.arrangementIndex = typeof state.arrangementIndex === 'number'
+        ? Math.max(0, Math.min(STORED_STATE_COUNT - 1, Math.floor(state.arrangementIndex)))
+        : null
       applyChannelState(channel, state)
+      normalizeArrangement(channel)
     })
-    storedStates.value = seed.storedStates.map(states => states.map(cloneStoredState))
-    activeStoredStateIndexes.value = seed.activeStoredStateIndexes.slice()
     currentIndex.value = seed.currentIndex
     return null
   }
@@ -739,6 +851,7 @@ export function useChannels() {
     if (!state) return
 
     applyChannelState(currentChannel.value, state)
+    normalizeArrangement(currentChannel.value)
   }
 
   function storeAllStates() {
@@ -777,6 +890,9 @@ export function useChannels() {
     target.quantisation = source.quantisation
     target.key = source.key
     target.microtonesEnabled = source.microtonesEnabled
+    target.playbackMode = source.playbackMode
+    target.arrangementSlots = source.arrangementSlots.slice()
+    target.arrangementIndex = source.arrangementIndex
     target.muted = source.muted
     storedStates.value[targetIndex] = storedStates.value[sourceIndex].map(cloneStoredState)
     activeStoredStateIndexes.value[targetIndex] = activeStoredStateIndexes.value[sourceIndex]
@@ -788,10 +904,45 @@ export function useChannels() {
     target.arpeggiator.setLoopLength(target.loopLength)
     target.arpeggiator.setSubdivision(target.quantisation)
     target.arpeggiator.setSteps(target.steps)
+    normalizeArrangement(target)
 
     if (source.playing && target.playing) {
       target.arpeggiator.startAlignedTo(source.arpeggiator)
     }
+  }
+
+  function setArrangementSlot(channelIndex: number, slotIndex: number, sourceStateIndex: number | null) {
+    const channel = channels[channelIndex]
+    if (!channel || slotIndex < 0 || slotIndex >= channel.arrangementSlots.length) return
+    if (sourceStateIndex !== null && !isValidStoredStateIndex(sourceStateIndex)) return
+
+    channel.arrangementSlots[slotIndex] = sourceStateIndex
+    normalizeArrangement(channel)
+  }
+
+  function moveArrangementSlot(channelIndex: number, fromIndex: number, toIndex: number) {
+    const channel = channels[channelIndex]
+    if (!channel || fromIndex === toIndex) return
+    if (fromIndex < 0 || fromIndex >= channel.arrangementSlots.length) return
+    if (toIndex < 0 || toIndex >= channel.arrangementSlots.length) return
+
+    const nextSlots = channel.arrangementSlots.slice()
+    const sourceValue = nextSlots[fromIndex]
+    nextSlots[fromIndex] = nextSlots[toIndex]
+    nextSlots[toIndex] = sourceValue
+    channel.arrangementSlots = nextSlots
+    normalizeArrangement(channel)
+  }
+
+  function clearArrangementSlot(channelIndex: number, slotIndex: number) {
+    setArrangementSlot(channelIndex, slotIndex, null)
+  }
+
+  function setArrangementSlots(channelIndex: number, slots: (number | null)[]) {
+    const channel = channels[channelIndex]
+    if (!channel) return
+    channel.arrangementSlots = createArrangementSlots(slots)
+    normalizeArrangement(channel)
   }
 
   function setClockOutput(id: string | null) {
@@ -864,6 +1015,11 @@ export function useChannels() {
     applyStoredState,
     storeAllStates,
     applyAllStoredStates,
+    setArrangementSlot,
+    moveArrangementSlot,
+    clearArrangementSlot,
+    setArrangementSlots,
+    setPlaybackMode,
     createSeed,
     loadSeed,
     copyChannel,

@@ -13,7 +13,7 @@
         <button class="master-mute" @click="toggleMuteAll">{{ allMuted ? 'Unmute All' : 'Mute All' }}</button>
         <label class="global-key-control">GLOBAL KEY
           <select :value="globalKey" @change="updateGlobalKey($event.target.value)">
-            <option v-for="key in CIRCLE_OF_FIFTHS_KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
+            <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
           </select>
         </label>
         <button class="global-variation" @click="createGlobalVariation">Var all</button>
@@ -29,11 +29,17 @@
     <ArpeggiatorPanel :channel="currentChannel" :global-actions="globalActions" :log="log"
       :stored-states="currentStoredStates"
       :active-stored-state-index="currentActiveStoredStateIndex"
+      :arrangement-slots="currentChannel.arrangementSlots"
+      :active-arrangement-slot-index="currentChannel.arrangementIndex"
       @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="globalActions = !globalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState"
+      @arrangement-assign-slot="handleArrangementAssignSlot"
+      @arrangement-move-slot="handleArrangementMoveSlot"
+      @arrangement-clear-slot="handleArrangementClearSlot"
+      @toggle-playback-mode="handleTogglePlaybackMode"
       />
 
     <OutputRoutingPanel :outputs="outputs" :selected-output-id="selectedOutputId" @select-output="(id) => { selectedOutputId = id }" />
@@ -60,7 +66,7 @@ import ArpeggiatorPanel from './components/ArpeggiatorPanel.vue'
 import MidiClockPanel from './components/MidiClockPanel.vue'
 import OutputRoutingPanel from './components/OutputRoutingPanel.vue'
 import { useChannels } from './useChannels'
-import { CIRCLE_OF_FIFTHS_KEYS } from './config'
+import { KEYS } from './config'
 import { useKeyboard } from './useKeyboard'
 
 const {
@@ -115,6 +121,10 @@ const {
   applyStoredState,
   storeAllStates,
   applyAllStoredStates,
+  setArrangementSlot,
+  moveArrangementSlot,
+  clearArrangementSlot,
+  setPlaybackMode,
   createSeed,
   loadSeed,
   copyChannel
@@ -142,6 +152,27 @@ function handleStoreState() {
 function handleApplyStoredState(index: number) {
   if (globalActions.value) applyAllStoredStates(index)
   else applyStoredState(index)
+}
+
+function handleArrangementAssignSlot(payload: { slotIndex: number, stateIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => setArrangementSlot(index, payload.slotIndex, payload.stateIndex))
+  else setArrangementSlot(currentIndex.value, payload.slotIndex, payload.stateIndex)
+}
+
+function handleArrangementMoveSlot(payload: { fromIndex: number, toIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => moveArrangementSlot(index, payload.fromIndex, payload.toIndex))
+  else moveArrangementSlot(currentIndex.value, payload.fromIndex, payload.toIndex)
+}
+
+function handleArrangementClearSlot(slotIndex: number) {
+  if (globalActions.value) channels.forEach((_, index) => clearArrangementSlot(index, slotIndex))
+  else clearArrangementSlot(currentIndex.value, slotIndex)
+}
+
+function handleTogglePlaybackMode() {
+  const nextMode = currentChannel.value.playbackMode === 'arrangement' ? 'state' : 'arrangement'
+  if (globalActions.value) channels.forEach((_, index) => setPlaybackMode(index, nextMode))
+  else setPlaybackMode(currentIndex.value, nextMode)
 }
 
 useKeyboard({

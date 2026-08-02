@@ -3,6 +3,9 @@ import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
 import { DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, CircleOfFifthsKey } from '../config'
 
+export type ArrangementSlot = number | null
+export type PlaybackMode = 'state' | 'arrangement'
+
 export interface Channel {
   id: number
   name: string
@@ -26,6 +29,9 @@ export interface Channel {
   quantisation: number
   key: CircleOfFifthsKey
   microtonesEnabled: boolean
+  playbackMode: PlaybackMode
+  arrangementSlots: ArrangementSlot[]
+  arrangementIndex: number | null
   arpeggiator: ReturnType<typeof createArpeggiator>
   color: string
   active: boolean
@@ -48,9 +54,10 @@ export interface StoredArpeggiatorState {
   quantisation: number
   key: CircleOfFifthsKey
   microtonesEnabled?: boolean
+  playbackMode?: PlaybackMode
 }
 
-export function createChannel(index: number, selectedOutputId: Ref<string | null>, log: Ref<string[]>) : Channel {
+export function createChannel(index: number, selectedOutputId: Ref<string | null>, log: Ref<string[]>, onLoop?: (channel: Channel) => void) : Channel {
   const arpeggiator = markRaw(createArpeggiator())
   const channel = reactive({
     id: index,
@@ -75,6 +82,9 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     quantisation: DEFAULT_QUANT,
     key: 'C' as CircleOfFifthsKey,
     microtonesEnabled: false,
+    playbackMode: 'state' as PlaybackMode,
+    arrangementSlots: Array.from({ length: 8 }, () => null) as ArrangementSlot[],
+    arrangementIndex: null as number | null,
     arpeggiator,
     color: '#c94f5e',
     active: false,
@@ -95,6 +105,10 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
   arpeggiator.on('tick', (payload) => {
     const { stepIndex } = payload
     channel.playStep = stepIndex
+  })
+
+  arpeggiator.on('loop', () => {
+    onLoop?.(channel)
   })
 
   arpeggiator.on('start', (payload) => {
