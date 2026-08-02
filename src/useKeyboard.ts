@@ -17,12 +17,6 @@ export function useKeyboard(handlers: KeyboardHandlers) {
   function handleKeydown(event: KeyboardEvent) {
     if (event.repeat) return
 
-    const target = event.target
-    if (target instanceof HTMLElement &&
-        (target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(target.tagName))) {
-      return
-    }
-
     const key = event.key.toLowerCase()
     if (event.metaKey && key === 'm') {
       handlers.toggleMuteAll()
@@ -73,6 +67,33 @@ export function useKeyboard(handlers: KeyboardHandlers) {
     if (handlers.playKeyboardNote(event.key)) event.preventDefault()
   }
 
+  function clearControlFocus() {
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) activeElement.blur()
+  }
+
+  function handleControlChange(event: Event) {
+    if (event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLSelectElement ||
+        event.target instanceof HTMLTextAreaElement) {
+      requestAnimationFrame(clearControlFocus)
+    }
+  }
+
+  function handleButtonClick(event: MouseEvent) {
+    if (event.target instanceof Element && event.target.closest('button')) {
+      requestAnimationFrame(clearControlFocus)
+    }
+  }
+
   onMounted(() => window.addEventListener('keydown', handleKeydown))
-  onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
+  onMounted(() => {
+    document.addEventListener('change', handleControlChange)
+    document.addEventListener('click', handleButtonClick)
+  })
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeydown)
+    document.removeEventListener('change', handleControlChange)
+    document.removeEventListener('click', handleButtonClick)
+  })
 }
