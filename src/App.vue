@@ -26,15 +26,19 @@
     </section>
 
 
-    <ArpeggiatorPanel :channel="currentChannel" :outputs="outputs" :selectedOutputId="selectedOutputId" :global-actions="globalActions"
-      :clock-outputs="clockOutputs" :clock-inputs="clockInputs" :clock-output-id="clockOutputId" :clock-input-id="clockInputId" :log="log"
+    <ArpeggiatorPanel :channel="currentChannel" :global-actions="globalActions" :log="log"
       :stored-states="currentStoredStates"
       :active-stored-state-index="currentActiveStoredStateIndex"
       @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
-      @select-output="(id)=>{ selectedOutputId = id }" @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
+      @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="globalActions = !globalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState"
+      />
+
+    <OutputRoutingPanel :outputs="outputs" :selected-output-id="selectedOutputId" @select-output="(id) => { selectedOutputId = id }" />
+
+    <MidiClockPanel :clock-outputs="clockOutputs" :clock-inputs="clockInputs" :clock-output-id="clockOutputId" :clock-input-id="clockInputId"
       @set-clock-output="setClockOutput" @set-clock-input="setClockInput" />
 
     <section class="seed-panel module">
@@ -53,6 +57,8 @@
 import { onMounted, ref } from 'vue'
 import ChannelsBar from './components/ChannelsBar.vue'
 import ArpeggiatorPanel from './components/ArpeggiatorPanel.vue'
+import MidiClockPanel from './components/MidiClockPanel.vue'
+import OutputRoutingPanel from './components/OutputRoutingPanel.vue'
 import { useChannels } from './useChannels'
 import { CIRCLE_OF_FIFTHS_KEYS } from './config'
 import { useKeyboard } from './useKeyboard'

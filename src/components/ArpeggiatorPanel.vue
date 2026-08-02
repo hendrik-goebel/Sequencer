@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import StepsGrid from './StepsGrid.vue'
-import LogPanel from './LogPanel.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
-const props = defineProps<{ channel: any, outputs: any[], selectedOutputId: string | null, clockOutputs: any[], clockInputs: any[], clockOutputId: string | null, clockInputId: string | null, log: string[], storedStates: (StoredArpeggiatorState | null)[], activeStoredStateIndex: number | null, globalActions: boolean }>()
+const props = defineProps<{ channel: any, log: string[], storedStates: (StoredArpeggiatorState | null)[], activeStoredStateIndex: number | null, globalActions: boolean }>()
 
 const base = computed(() => props.channel?.base ?? DEFAULT_BASE)
 const toneMaterialNotes = computed(() => props.channel ? getToneMaterials(props.channel) : [])
@@ -74,28 +73,6 @@ const displayedNotes = computed(() => props.channel?.reduceNotes
       <button class="clear-button" @click="$emit('clear-notes')">Clear grid</button>
       <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
     </div>
-    <div class="routing-section">
-      <div class="control-column routing">
-        <label>Output
-          <select :value="selectedOutputId" @change="$emit('select-output', $event.target.value)">
-            <option v-for="o in outputs" :key="o.id" :value="o.id">{{ o.name }}</option>
-          </select>
-        </label>
-        <label>Clock out
-          <select :value="clockOutputId" @change="$emit('set-clock-output', $event.target.value || null)">
-            <option value="">Off</option>
-            <option v-for="output in clockOutputs" :key="output.id" :value="output.id">{{ output.name }}</option>
-          </select>
-        </label>
-        <label>Clock in
-          <select :value="clockInputId" @change="$emit('set-clock-input', $event.target.value || null)">
-            <option value="">Off</option>
-            <option v-for="input in clockInputs" :key="input.id" :value="input.id">{{ input.name }}</option>
-          </select>
-        </label>
-      </div>
-    </div>
-
   </section>
 </template>
 
@@ -112,10 +89,9 @@ h2 { color: #effaff; font-size: 1.15rem; letter-spacing: .08em; }
 .play-button.playing { border-color: var(--coral); background: var(--coral-deep); color: var(--coral-soft); }
 .play-button.playing span { width: 6px; height: 8px; border: 0; border-left: 2px solid currentColor; border-right: 2px solid currentColor; }
 .controls { display: grid; gap: 1.25rem; margin-bottom: 1.25rem; }
-.control-section, .routing-section { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--line); }
+.control-section { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--line); }
 .control-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .sequence-section { grid-template-columns: minmax(5.5rem, auto) repeat(6, minmax(0, 1fr)); align-items: end; }
-.routing-section { grid-template-columns: 1fr; }
 .control-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .control-section h3 { grid-column: 1 / -1; color: var(--teal); }
 .sequence-section h3 { grid-column: auto; }
@@ -127,8 +103,6 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .value-input { display: flex; align-items: center; border-bottom: 1px solid var(--line-strong); }
 .value-input input { width: 100%; border: 0; border-radius: 0; background: transparent; padding: .35rem 0; }
 .value-input small { color: var(--teal); font-size: .55rem; }
-.routing { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.routing h3 { grid-column: 1 / -1; }
 .clear-button {
   margin-left: auto;
   border: 1px solid var(--line-strong); border-radius: 4px; padding: .5rem .7rem;

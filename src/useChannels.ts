@@ -425,7 +425,9 @@ export function useChannels() {
     await initMidi()
     outputs.value = listOutputs()
     clockOutputs.value = outputs.value.filter(output => output.id !== SINE_OUTPUT_ID)
+    if (clockOutputs.value.length) setClockOutput(clockOutputs.value[0].id)
     clockInputs.value = listInputs()
+    if (clockInputs.value.length) setClockInput(clockInputs.value[0].id)
     if (outputs.value.length) selectedOutputId.value = outputs.value[0].id
   }
 
