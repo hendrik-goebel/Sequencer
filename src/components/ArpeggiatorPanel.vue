@@ -82,6 +82,8 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       <button class="variation-button" aria-label="Move arpeggio notes up" @click="$emit('shift-notes', 1)">up</button>
       <button class="variation-button" aria-label="Move arpeggio notes down" @click="$emit('shift-notes', -1)">down</button>
       <button class="store-button" @click="$emit('store-state')">Store state</button>
+      <button class="clear-button" @click="$emit('clear-notes')">Clear grid</button>
+      <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
       <div class="stored-states">
         <button
           v-for="(_, index) in storedStates"
@@ -94,8 +96,6 @@ function startStoredStateDrag(index: number, event: DragEvent) {
           @click="$emit('apply-stored-state', index)"
         >{{ index + 1 }}</button>
       </div>
-      <button class="clear-button" @click="$emit('clear-notes')">Clear grid</button>
-      <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
     </div>
     <PatternArranger
       :arrangement-slots="arrangementSlots"
@@ -212,10 +212,45 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 }
 .store-button { border-color: var(--teal); color: var(--teal-soft); background: var(--teal-deep); }
 .variation-button { border-color: var(--lavender); color: var(--lavender); background: var(--lavender-deep); }
-.stored-states { display: flex; flex-wrap: wrap; gap: .35rem; }
-.stored-state-button { min-width: 2rem; color: var(--lavender-soft); background: var(--lavender-deep); }
-.stored-state-button.empty { border-style: dashed; color: #71828c; background: #152029; }
-.stored-state-button.active { border-color: var(--teal); background: var(--teal-deep); color: var(--teal-soft); box-shadow: 0 0 8px rgba(104, 216, 195, .28); }
+.stored-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  flex-basis: 100%;
+  justify-content: flex-start;
+  order: 10;
+  margin-top: .4rem;
+}
+.stored-state-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  min-height: 2.35rem;
+  padding: .35rem .25rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  background: #18242d;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  align-content: center;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.stored-state-button:not(.empty) {
+  border-style: solid;
+  border-color: var(--lavender);
+  background: var(--lavender-deep);
+  color: var(--lavender-soft);
+}
+.stored-state-button.active {
+  border-color: var(--teal);
+  background: var(--teal-deep);
+  color: var(--teal-soft);
+  box-shadow: 0 0 10px rgba(104, 216, 195, .28);
+}
 .section-label { display: flex; justify-content: space-between; margin: 0 0 .6rem; }
 .section-label span { color: #52636f; font-size: .55rem; }
 @media (max-width: 560px) { .arpeggiator-panel { padding: .8rem; } .sequence-section { grid-template-columns: 1fr 1fr; } .sequence-section h3 { grid-column: 1 / -1; } .routing { grid-template-columns: 1fr; } .control-column { grid-template-columns: 1fr 1fr; } }

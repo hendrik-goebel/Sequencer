@@ -5,7 +5,6 @@
         <h3>ARRANGE</h3>
       </div>
       <div class="heading-right">
-        <span>Drop stored states into the sequence</span>
         <button
           type="button"
           class="enabled-button"
