@@ -74,7 +74,9 @@ const visualChannel = computed(() => {
 })
 
 const base = computed(() => visualChannel.value?.base ?? DEFAULT_BASE)
-const toneMaterialNotes = computed(() => visualChannel.value ? getToneMaterials(visualChannel.value) : [])
+const toneMaterialNotes = computed(() => visualChannel.value
+  ? getToneMaterials(visualChannel.value, visualChannel.value.selectedOctaves)
+  : [])
 const fullNotes = computed(() => {
   const step = visualChannel.value?.microtonesEnabled ? MICROTONAL_STEP : 1
   return ARPEGGIO_OCTAVES.flatMap(octave => {

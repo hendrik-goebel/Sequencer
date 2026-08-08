@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { KEYS, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
+import { KEYS, NO_KEY, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
 import { isSustainedStep, StepValue, stepNotes } from '../models/arpeggiator'
 
 const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
@@ -27,8 +27,10 @@ const emit = defineEmits<{
 }>()
 
 const base = props.base ?? DEFAULT_BASE
-const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot)?.pitchClass ?? 0)
-const keyPitchClasses = computed(() => new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
+const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot)?.pitchClass ?? null)
+const keyPitchClasses = computed(() => keyPitchClass.value === null || props.keyRoot === NO_KEY
+  ? new Set<number>()
+  : new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
 
 const stepCountArray = computed(() => {
   const cnt = (props.stepCount && props.stepCount > 0) ? props.stepCount : STEP_COUNT

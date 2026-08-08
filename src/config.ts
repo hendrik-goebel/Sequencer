@@ -36,7 +36,8 @@ export const KEYS = [
   { name: 'Bb', pitchClass: 10 },
   { name: 'F', pitchClass: 5 }
 ] as const
-export type CircleOfFifthsKey = typeof KEYS[number]['name']
+export const NO_KEY = 'non' as const
+export type CircleOfFifthsKey = typeof KEYS[number]['name'] | typeof NO_KEY
 
 // German keyboard layout: white keys span C through D in the next octave,
 // while the black keys continue the chromatic sequence between them.

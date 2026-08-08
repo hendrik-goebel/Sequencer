@@ -13,6 +13,7 @@
       </button>
       <label class="key-control">Key
         <select :value="ch.key" @click.stop @change.stop="$emit('update-key', i, $event.target.value)">
+          <option :value="NO_KEY">{{ NO_KEY }}</option>
           <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
         </select>
       </label>
@@ -27,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { KEYS } from '../config'
+import { KEYS, NO_KEY } from '../config'
 
 const emit = defineEmits<{
   (event: 'select', index: number): void

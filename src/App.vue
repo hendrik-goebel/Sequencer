@@ -13,6 +13,7 @@
         <button class="master-mute" @click="toggleMuteAll">{{ allMuted ? 'Unmute All' : 'Mute All' }}</button>
         <label class="global-key-control">GLOBAL KEY
           <select :value="globalKey" @change="updateGlobalKey($event.target.value)">
+            <option :value="NO_KEY">{{ NO_KEY }}</option>
             <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
           </select>
         </label>
@@ -69,7 +70,7 @@ import ArpeggiatorPanel from './components/ArpeggiatorPanel.vue'
 import MidiClockPanel from './components/MidiClockPanel.vue'
 import OutputRoutingPanel from './components/OutputRoutingPanel.vue'
 import { useChannels } from './useChannels'
-import { KEYS } from './config'
+import { KEYS, NO_KEY } from './config'
 import { useKeyboard } from './useKeyboard'
 
 const {

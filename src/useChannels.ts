@@ -3,7 +3,7 @@ import { initMidi, listOutputs, listInputs, getOutput, getInput, selectOutput, s
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 
@@ -160,14 +160,14 @@ export function useChannels() {
   }
 
   function getKeyPitchClass(channel: typeof channels[number]) {
-    return KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
+    return KEYS.find(key => key.name === channel.key)?.pitchClass ?? null
   }
 
   function isKeyTone(channel: typeof channels[number], note: number) {
-    const octaveBase = 12 * (channel.octave + 1)
     const keyPitchClass = getKeyPitchClass(channel)
-    const keyPitches = MAJOR_SCALE_OFFSETS.map(offset => octaveBase + ((keyPitchClass + offset) % 12))
-    return Number.isInteger(note) && keyPitches.includes(note)
+    if (keyPitchClass === null || channel.key === NO_KEY) return false
+    const keyPitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+    return Number.isInteger(note) && keyPitchClasses.includes((note % 12 + 12) % 12)
   }
 
   function setGlobalBpm(bpm:number){
@@ -180,9 +180,12 @@ export function useChannels() {
   }
 
   function updateGlobalKey(key: string) {
-    if (!KEYS.some(candidate => candidate.name === key)) return
+    if (key !== NO_KEY && !KEYS.some(candidate => candidate.name === key)) return
     globalKey.value = key as CircleOfFifthsKey
-    channels.forEach(channel => { channel.key = globalKey.value })
+    channels.forEach(channel => {
+      channel.key = globalKey.value
+      if (globalKey.value === NO_KEY) channel.additionalNotes = []
+    })
   }
 
   function syncMidiClockTransport() {
@@ -249,17 +252,22 @@ export function useChannels() {
   function toggleToneMaterial(note: number) {
     const channel = currentChannel.value
     const isKeyNote = isKeyTone(channel, note)
+    const activeOctaves = channel.selectedOctaves.length
+      ? channel.selectedOctaves
+      : [channel.octave]
+    const pitchOffset = (note % 12 + 12) % 12
+    const octaveNotes = activeOctaves.map(octave => 12 * (octave + 1) + pitchOffset)
     const isExcluded = channel.excludedNotes.includes(note)
     const isAdditional = channel.additionalNotes.includes(note)
 
     if (isExcluded) {
-      channel.excludedNotes = channel.excludedNotes.filter(candidate => candidate !== note)
+      channel.excludedNotes = channel.excludedNotes.filter(candidate => !octaveNotes.includes(candidate))
     } else if (isKeyNote) {
-      channel.excludedNotes = [...channel.excludedNotes, note].sort((a, b) => a - b)
+      channel.excludedNotes = [...new Set([...channel.excludedNotes, ...octaveNotes])].sort((a, b) => a - b)
     } else if (isAdditional) {
-      channel.additionalNotes = channel.additionalNotes.filter(candidate => candidate !== note)
+      channel.additionalNotes = channel.additionalNotes.filter(candidate => !octaveNotes.includes(candidate))
     } else {
-      channel.additionalNotes = [...channel.additionalNotes, note].sort((a, b) => a - b)
+      channel.additionalNotes = [...new Set([...channel.additionalNotes, ...octaveNotes])].sort((a, b) => a - b)
     }
   }
 
@@ -415,7 +423,7 @@ export function useChannels() {
   function createVariation(index: number) {
     const channel = channels[index]
     const octaveBase = 12 * (channel.octave + 1)
-    const toneMaterials = getToneMaterials(channel)
+    const toneMaterials = getToneMaterials(channel, channel.selectedOctaves)
     if (!toneMaterials.length) {
       channel.notes = []
       channel.steps = Array.from({ length: channel.loopLength }, () => -1)
@@ -582,8 +590,9 @@ export function useChannels() {
   function updatePattern(pattern:any){ currentChannel.value.arpeggiator.setPattern(pattern); currentChannel.value.pattern = pattern }
   function updateChannelKey(index: number, key: string) {
     const channel = channels[index]
-    if (!channel || !KEYS.some(candidate => candidate.name === key)) return
+    if (!channel || (key !== NO_KEY && !KEYS.some(candidate => candidate.name === key))) return
     channel.key = key as CircleOfFifthsKey
+    if (channel.key === NO_KEY) channel.additionalNotes = []
   }
   function updateNoteLength(length:number){ currentChannel.value.arpeggiator.setNoteLength(length); currentChannel.value.noteLength = length }
   function updateArpeggioLength(length:number){
@@ -831,7 +840,7 @@ export function useChannels() {
       typeof value.loopLength === 'number' && Number.isFinite(value.loopLength) &&
       typeof value.arpeggioLength === 'number' && Number.isFinite(value.arpeggioLength) &&
       typeof value.quantisation === 'number' && Number.isFinite(value.quantisation) &&
-      typeof value.key === 'string' && KEYS.some(key => key.name === value.key) &&
+      typeof value.key === 'string' && (value.key === NO_KEY || KEYS.some(key => key.name === value.key)) &&
       (!('microtonesEnabled' in value) || typeof value.microtonesEnabled === 'boolean') &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode))
   }
@@ -855,7 +864,7 @@ export function useChannels() {
           value.version !== 1 ||
           typeof value.globalBpm !== 'number' || !Number.isFinite(value.globalBpm) ||
           typeof value.globalKey !== 'string' ||
-          !KEYS.some(key => key.name === value.globalKey) ||
+          (value.globalKey !== NO_KEY && !KEYS.some(key => key.name === value.globalKey)) ||
           typeof value.currentIndex !== 'number' || !Number.isInteger(value.currentIndex) ||
           !Array.isArray(value.channels) || value.channels.length !== channels.length ||
           !value.channels.every(isSeedChannel) ||

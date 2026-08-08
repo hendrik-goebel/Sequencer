@@ -1,4 +1,4 @@
-import { KEYS, MAJOR_SCALE_OFFSETS } from '../config'
+import { KEYS, MAJOR_SCALE_OFFSETS, NO_KEY } from '../config'
 
 export interface ToneMaterialSource {
   key: string
@@ -8,11 +8,13 @@ export interface ToneMaterialSource {
   excludedNotes: number[]
 }
 
-export function getToneMaterials(channel: ToneMaterialSource) {
-  const octaveBase = 12 * (channel.octave + 1)
-  const keyPitchClass = KEYS.find(key => key.name === channel.key)?.pitchClass ?? 0
-
-  const keyPitches = MAJOR_SCALE_OFFSETS.map(offset => octaveBase + ((keyPitchClass + offset) % 12))
+export function getToneMaterials(channel: ToneMaterialSource, octaves = [channel.octave]) {
+  const keyPitchClass = KEYS.find(key => key.name === channel.key)?.pitchClass
+  const keyPitches = octaves.flatMap(octave => {
+    if (channel.key === NO_KEY || keyPitchClass === undefined) return []
+    const octaveBase = 12 * (octave + 1)
+    return MAJOR_SCALE_OFFSETS.map(offset => octaveBase + ((keyPitchClass + offset) % 12))
+  })
   return [...new Set([...keyPitches, ...channel.additionalNotes])]
     .filter(note => !channel.excludedNotes.includes(note))
     .sort((a, b) => a - b)
