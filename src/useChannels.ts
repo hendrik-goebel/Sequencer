@@ -284,12 +284,15 @@ export function useChannels() {
       .flatMap(octave => MAJOR_SCALE_OFFSETS.map(offset =>
         12 * (octave + 1) + ((keyPitchClass + offset) % 12)))
       .sort((a, b) => a - b)
+    const isInActiveOctave = (note: number) =>
+      activeOctaves.includes(Math.floor(note / 12) - 1)
     const activeNotes = [...new Set(getToneMaterials(channel, activeOctaves))]
+      .filter(isInActiveOctave)
     const shiftedNotes = activeNotes.map(note => {
       const nextNote = direction > 0
         ? keyNotes.find(candidate => candidate > note)
         : [...keyNotes].reverse().find(candidate => candidate < note)
-      return nextNote ?? note
+      return nextNote ?? (direction > 0 ? keyNotes[0] : keyNotes[keyNotes.length - 1])
     })
 
     activeNotes.forEach(note => toggleToneMaterialSelection(channel, note, false))
@@ -731,15 +734,17 @@ export function useChannels() {
   }
 
   function shiftChannelNotes(channel: typeof channels[number], direction: 1 | -1) {
-    const activeToneMaterial = getToneMaterials(channel).sort((a, b) => a - b)
+    const activeOctaves = channel.selectedOctaves.length
+      ? channel.selectedOctaves
+      : [channel.octave]
+    const activeToneMaterial = getToneMaterials(channel, activeOctaves)
+      .filter(note => activeOctaves.includes(Math.floor(note / 12) - 1))
+      .sort((a, b) => a - b)
     const shiftPitch = (pitch: number) => {
-      const candidates = activeToneMaterial
-        .flatMap(note => Array.from({ length: 21 }, (_, octave) => note + (octave - 10) * 12))
-        .sort((a, b) => a - b)
       const next = direction > 0
-        ? candidates.find(note => note > pitch)
-        : [...candidates].reverse().find(note => note < pitch)
-      return next ?? pitch
+        ? activeToneMaterial.find(note => note > pitch)
+        : [...activeToneMaterial].reverse().find(note => note < pitch)
+      return next ?? (direction > 0 ? activeToneMaterial[0] : activeToneMaterial[activeToneMaterial.length - 1]) ?? pitch
     }
 
     const shiftStep = (step: StepValue): StepValue => {
@@ -766,15 +771,17 @@ export function useChannels() {
   }
 
   function shiftStoredStateNotes(channel: typeof channels[number], state: StoredArpeggiatorState, direction: 1 | -1) {
-    const activeToneMaterial = getToneMaterials(channel).sort((a, b) => a - b)
-    const candidates = activeToneMaterial
-      .flatMap(note => Array.from({ length: 21 }, (_, octave) => note + (octave - 10) * 12))
+    const activeOctaves = channel.selectedOctaves.length
+      ? channel.selectedOctaves
+      : [channel.octave]
+    const activeToneMaterial = getToneMaterials(channel, activeOctaves)
+      .filter(note => activeOctaves.includes(Math.floor(note / 12) - 1))
       .sort((a, b) => a - b)
     const shiftPitch = (pitch: number) => {
       const next = direction > 0
-        ? candidates.find(note => note > pitch)
-        : [...candidates].reverse().find(note => note < pitch)
-      return next ?? pitch
+        ? activeToneMaterial.find(note => note > pitch)
+        : [...activeToneMaterial].reverse().find(note => note < pitch)
+      return next ?? (direction > 0 ? activeToneMaterial[0] : activeToneMaterial[activeToneMaterial.length - 1]) ?? pitch
     }
     const shiftStep = (step: StepValue): StepValue => {
       if (typeof step === 'number') return step >= 0 ? shiftPitch(step) : step
