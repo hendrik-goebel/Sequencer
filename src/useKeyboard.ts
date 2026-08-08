@@ -10,6 +10,7 @@ interface KeyboardHandlers {
   createVariation: (index: number) => void
   createGlobalVariation: () => void
   shiftCurrentChannelNotes: (direction: 1 | -1) => void
+  shiftCurrentToneMaterial: (direction: 1 | -1) => void
   playKeyboardNote: (key: string) => boolean
 }
 
@@ -25,6 +26,13 @@ export function useKeyboard(handlers: KeyboardHandlers) {
     }
     if (event.metaKey && key === 'v') {
       handlers.createGlobalVariation()
+      event.preventDefault()
+      return
+    }
+
+    if (event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey &&
+        (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      handlers.shiftCurrentToneMaterial(event.key === 'ArrowUp' ? 1 : -1)
       event.preventDefault()
       return
     }

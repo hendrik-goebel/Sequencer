@@ -38,6 +38,7 @@ export interface Channel {
   color: string
   active: boolean
   playStep: number | null
+  toneMaterialCursor: number | null
 }
 
 export interface StoredArpeggiatorState {
@@ -93,7 +94,8 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     arpeggiator,
     color: '#c94f5e',
     active: false,
-    playStep: null as number | null
+    playStep: null as number | null,
+    toneMaterialCursor: null as number | null
   }) as Channel
 
   arpeggiator.on('note', (payload) => {

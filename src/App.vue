@@ -119,6 +119,7 @@ const {
   updateArpeggioOctave,
   updateEditorOctaves,
   shiftCurrentChannelNotes: shiftCurrentChannelNotesForChannel,
+  shiftCurrentToneMaterial,
   shiftAllChannelNotes,
   shiftArrangementNotes,
   shiftAllArrangementNotes,
@@ -218,6 +219,7 @@ useKeyboard({
   createVariation: handleVariation,
   createGlobalVariation,
   shiftCurrentChannelNotes: handleShiftNotes,
+  shiftCurrentToneMaterial,
   playKeyboardNote
 })
 onMounted(() => {

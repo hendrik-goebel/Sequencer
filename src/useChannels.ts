@@ -252,6 +252,7 @@ export function useChannels() {
   function toggleToneMaterial(note: number) {
     const channel = currentChannel.value
     const isKeyNote = isKeyTone(channel, note)
+    channel.toneMaterialCursor = note
     const activeOctaves = channel.selectedOctaves.length
       ? channel.selectedOctaves
       : [channel.octave]
@@ -268,6 +269,53 @@ export function useChannels() {
       channel.additionalNotes = channel.additionalNotes.filter(candidate => !octaveNotes.includes(candidate))
     } else {
       channel.additionalNotes = [...new Set([...channel.additionalNotes, ...octaveNotes])].sort((a, b) => a - b)
+    }
+  }
+
+  function shiftCurrentToneMaterial(direction: 1 | -1) {
+    const channel = currentChannel.value
+    const keyPitchClass = getKeyPitchClass(channel)
+    if (keyPitchClass === null || channel.key === NO_KEY) return
+
+    const activeOctaves = channel.selectedOctaves.length
+      ? channel.selectedOctaves
+      : [channel.octave]
+    const keyNotes = activeOctaves
+      .flatMap(octave => MAJOR_SCALE_OFFSETS.map(offset =>
+        12 * (octave + 1) + ((keyPitchClass + offset) % 12)))
+      .sort((a, b) => a - b)
+    const activeNotes = [...new Set(getToneMaterials(channel, activeOctaves))]
+    const shiftedNotes = activeNotes.map(note => {
+      const nextNote = direction > 0
+        ? keyNotes.find(candidate => candidate > note)
+        : [...keyNotes].reverse().find(candidate => candidate < note)
+      return nextNote ?? note
+    })
+
+    activeNotes.forEach(note => toggleToneMaterialSelection(channel, note, false))
+    shiftedNotes.forEach(note => toggleToneMaterialSelection(channel, note, true))
+    channel.toneMaterialCursor = shiftedNotes[shiftedNotes.length - 1] ?? null
+  }
+
+  function toggleToneMaterialSelection(
+    channel: typeof channels[number],
+    note: number,
+    active: boolean,
+    octaves = channel.selectedOctaves.length
+      ? channel.selectedOctaves
+      : [channel.octave]
+  ) {
+    const pitchOffset = (note % 12 + 12) % 12
+    const octaveNotes = octaves.map(octave => 12 * (octave + 1) + pitchOffset)
+
+    if (isKeyTone(channel, note)) {
+      channel.excludedNotes = active
+        ? channel.excludedNotes.filter(candidate => !octaveNotes.includes(candidate))
+        : [...new Set([...channel.excludedNotes, ...octaveNotes])].sort((a, b) => a - b)
+    } else {
+      channel.additionalNotes = active
+        ? [...new Set([...channel.additionalNotes, ...octaveNotes])].sort((a, b) => a - b)
+        : channel.additionalNotes.filter(candidate => !octaveNotes.includes(candidate))
     }
   }
 
@@ -388,8 +436,32 @@ export function useChannels() {
     const selectedOctaves = [...new Set(octaves)]
       .filter(octave => ARPEGGIO_OCTAVES.includes(octave))
       .sort((a, b) => a - b)
+    const previousOctaves = currentChannel.value.selectedOctaves.slice()
+    const addedOctaves = selectedOctaves.filter(octave => !previousOctaves.includes(octave))
 
+    if (selectedOctaves.length > 1) {
+      addedOctaves.forEach(octave => copyToneMaterialsToOctave(currentChannel.value, previousOctaves, octave))
+    }
     channelEditorOctaves(currentChannel.value, selectedOctaves)
+  }
+
+  function copyToneMaterialsToOctave(
+    channel: typeof channels[number],
+    sourceOctaves: number[],
+    targetOctave: number
+  ) {
+    getToneMaterials(channel, [targetOctave])
+      .filter(note => Math.floor(note / 12) - 1 === targetOctave)
+      .forEach(note => toggleToneMaterialSelection(channel, note, false, [targetOctave]))
+
+    const sourcePitchOffsets = [...new Set(sourceOctaves.flatMap(sourceOctave =>
+      getToneMaterials(channel, [sourceOctave])
+        .filter(note => Math.floor(note / 12) - 1 === sourceOctave)
+        .map(note => (note % 12 + 12) % 12)))]
+
+    sourcePitchOffsets.forEach(pitchOffset => {
+      toggleToneMaterialSelection(channel, 12 * (targetOctave + 1) + pitchOffset, true, [targetOctave])
+    })
   }
 
   function channelEditorOctaves(channel: typeof channels[number], selectedOctaves: number[]) {
@@ -1125,6 +1197,7 @@ export function useChannels() {
     updateArpeggioOctave,
     updateEditorOctaves,
     shiftCurrentChannelNotes,
+    shiftCurrentToneMaterial,
     shiftAllChannelNotes,
     shiftArrangementNotes,
     shiftAllArrangementNotes,
