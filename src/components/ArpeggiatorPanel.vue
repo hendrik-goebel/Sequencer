@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_EDITOR_OCTAVES, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -77,7 +77,9 @@ const base = computed(() => visualChannel.value?.base ?? DEFAULT_BASE)
 const toneMaterialNotes = computed(() => visualChannel.value ? getToneMaterials(visualChannel.value) : [])
 const fullNotes = computed(() => {
   const step = visualChannel.value?.microtonesEnabled ? MICROTONAL_STEP : 1
-  const length = visualChannel.value?.microtonesEnabled ? KEYBOARD_OCTAVE_SIZE * 2 : KEYBOARD_OCTAVE_SIZE
+  const length = visualChannel.value?.microtonesEnabled
+    ? KEYBOARD_OCTAVE_SIZE * NOTE_EDITOR_OCTAVES * 2
+    : KEYBOARD_OCTAVE_SIZE * NOTE_EDITOR_OCTAVES
   return Array.from({ length }, (_, i) => base.value + i * step).reverse()
 })
 const displayedNotes = computed(() => visualChannel.value?.reduceNotes
@@ -124,7 +126,9 @@ function startStoredStateDrag(index: number, event: DragEvent) {
     <div class="sequencer">
       <button type="button" class="microtones-button" :class="{ active: visualChannel.microtonesEnabled }" :aria-pressed="visualChannel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
       <button type="button" class="reduce-button" :class="{ active: visualChannel.reduceNotes }" :aria-pressed="visualChannel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
-      <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+      <div class="note-grid-scroll">
+        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+      </div>
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>
         <VerticalSlider v-for="(velocity, index) in visualChannel.velocities.slice(0, visualChannel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
@@ -226,6 +230,11 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .follow-button.active { border-color: var(--lavender); background: var(--lavender-deep); color: var(--lavender-soft); }
 .follow-button:disabled { opacity: .45; cursor: not-allowed; }
 .sequencer { overflow-x: auto; }
+.note-grid-scroll {
+  max-height: 32rem;
+  overflow: auto;
+  scrollbar-color: var(--line-strong) var(--bg-control);
+}
 .velocity-row {
   display: flex;
   align-items: flex-end;
