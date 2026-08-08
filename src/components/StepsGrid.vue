@@ -6,9 +6,9 @@
     </div>
 
     <div v-for="note in notes" :key="note" class="row" :class="{ 'in-key': isKeyNote(note) && !isExcludedNote(note), 'additional-note': isAdditionalNote(note), 'excluded-note': isExcludedNote(note), 'microtone-note': isMicrotoneNote(note) }">
-      <button type="button" class="note-col" :class="{ selected: isSelectedNote(note) }" @click="$emit('toggle-tone-material', note)">{{ noteName(note) }}</button>
+      <button type="button" class="note-col" :class="{ 'key-note': isKeyNote(note), selected: isSelectedNote(note) }" @click="$emit('toggle-tone-material', note)">{{ noteName(note) }}</button>
       <div v-for="stepIndex in stepCountArray" :key="stepIndex-1" class="step-col"
-           :class="{active: isStepActive(stepIndex - 1, note), sustained: isSustainedSource(stepIndex - 1, note), 'sustain-continuation': isSustainedContinuation(stepIndex - 1, note), playing: props.playStep === (stepIndex-1)}"
+           :class="{active: isStepActive(stepIndex - 1, note), sustained: isSustainedSource(stepIndex - 1, note), 'sustain-continuation': isSustainedContinuation(stepIndex - 1, note), 'tone-material': isSelectedNote(note), playing: props.playStep === (stepIndex-1)}"
            @click="toggleStep(stepIndex - 1, note, $event)"></div>
     </div>
   </div>
@@ -95,17 +95,17 @@ function toggleStep(step: number, note: number, event: MouseEvent) {
 <style scoped>
 .steps-grid { display: inline-block; min-width: 100%; border: 1px solid var(--line); padding: 7px; border-radius: 6px; background: var(--bg-control); }
 .row { display: flex; align-items: center }
-.row.in-key .note-col, .row.in-key .step-col { background-color: rgba(104, 216, 195, .08); }
-.row.additional-note .note-col { background-color: rgba(181, 185, 239, .14); }
-.row.excluded-note .note-col { background-color: transparent; color: #71828c; text-decoration: line-through; }
+.row.in-key .step-col { background-color: rgba(181, 185, 239, .24); }
+.row.excluded-note .note-col { text-decoration: line-through; }
 .row.microtone-note .note-col { letter-spacing: .04em; }
 .note-col { width: 72px; padding: 8px; border: 0; border-right: 1px solid var(--line); background: transparent; color: #a9bac4; cursor: pointer; font: 700 .68rem ui-monospace, monospace; text-align: left; }
-.note-col:hover, .note-col:focus-visible { background-color: rgba(181, 185, 239, .14); outline: none; }
-.note-col.selected { color: var(--teal-soft); }
-.row.additional-note .note-col.selected { color: var(--lavender-soft); }
+.note-col.key-note { background-color: rgba(181, 185, 239, .24); }
+.note-col.selected { background-color: rgba(104, 216, 195, .2); }
+.note-col:hover, .note-col:focus-visible { outline: none; }
 .header-cell { color: var(--text-dim); font-size: .65rem; font-weight: 700; transition: color .18s ease, text-shadow .24s ease; }
 .step-col { width: 34px; height: 30px; margin: 4px; border: 1px solid var(--line); border-radius: 3px; background: #14232b; cursor: pointer; transition: background .12s, border-color .16s ease, box-shadow .22s ease, transform .16s ease; }
 .step-col:hover { border-color: var(--teal); }
+.step-col.tone-material:not(.active):not(.sustained):not(.sustain-continuation) { background-color: rgba(104, 216, 195, .2); }
 .step-col.active { border-color: var(--teal); background: linear-gradient(145deg, #5ccdbb, #28786f); box-shadow: inset 0 1px rgba(255,255,255,.3), 0 0 8px rgba(104,216,195,.18); }
 .step-col.sustained { border-color: var(--gold); background: linear-gradient(145deg, #d8b66c, #876b2c); box-shadow: inset 0 1px rgba(255,255,255,.3), 0 0 8px rgba(216,182,108,.22); }
 .step-col.sustain-continuation { border-left-color: var(--gold); border-right-color: var(--gold); background: linear-gradient(90deg, rgba(216,182,108,.5), rgba(216,182,108,.18)); }
