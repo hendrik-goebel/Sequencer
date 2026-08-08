@@ -4,33 +4,35 @@
       <div class="heading-title">
         <h3>ARRANGE</h3>
       </div>
-      <div class="heading-right">
+    </div>
+
+    <div class="rows">
+      <div v-for="(row, rowIndex) in arrangementRows" :key="rowIndex" class="arrangement-row">
         <button
           type="button"
           class="enabled-button"
-          :class="{ active: playbackMode === 'arrangement' }"
-          :aria-pressed="playbackMode === 'arrangement'"
-          @click="$emit('toggle-playback-mode')"
+          :class="{ active: activeArrangementRowIndex === rowIndex }"
+          :aria-pressed="activeArrangementRowIndex === rowIndex"
+          @click="$emit('select-row', rowIndex)"
         >Enabled</button>
+        <div class="slots">
+          <button
+            v-for="(slot, slotIndex) in row"
+            :key="slotIndex"
+            type="button"
+            class="slot"
+            :class="{ filled: slot !== null, active: activeArrangementRowIndex === rowIndex && activeArrangementSlotIndex === slotIndex && playbackMode === 'arrangement' }"
+            :draggable="slot !== null"
+            @dragstart="slot !== null && startSlotDrag(rowIndex, slotIndex, $event)"
+            @dragover.prevent
+            @drop.prevent="handleDrop(rowIndex, slotIndex, $event)"
+            @dblclick="slot !== null && clearSlot(rowIndex, slotIndex)"
+            :aria-label="slot === null ? `Empty arrangement row ${rowIndex + 1} slot ${slotIndex + 1}` : `Row ${rowIndex + 1}, slot ${slotIndex + 1}, state ${slot + 1}`"
+          >
+            <span class="slot-number">{{ slot === null ? '' : slot + 1 }}</span>
+          </button>
+        </div>
       </div>
-    </div>
-
-    <div class="slots">
-      <button
-        v-for="(slot, index) in arrangementSlots"
-        :key="index"
-        type="button"
-        class="slot"
-        :class="{ filled: slot !== null, active: activeArrangementSlotIndex === index }"
-        :draggable="slot !== null"
-        @dragstart="slot !== null && startSlotDrag(index, $event)"
-        @dragover.prevent
-        @drop.prevent="handleDrop(index, $event)"
-        @dblclick="slot !== null && clearSlot(index)"
-        :aria-label="slot === null ? `Empty arrangement slot ${index + 1}` : `Slot ${index + 1}, state ${slot + 1}`"
-      >
-        <span class="slot-number">{{ slot === null ? '' : slot + 1 }}</span>
-      </button>
     </div>
   </section>
 </template>
@@ -39,48 +41,56 @@
 const DRAG_TYPE = 'application/x-arpeggiator-arrangement'
 
 const props = defineProps<{
-  arrangementSlots: (number | null)[]
+  arrangementRows: (number | null)[][]
+  activeArrangementRowIndex: number
   activeArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
 }>()
 
 const emit = defineEmits<{
-  (event: 'assign-slot', payload: { slotIndex: number, stateIndex: number }): void
-  (event: 'move-slot', payload: { fromIndex: number, toIndex: number }): void
-  (event: 'clear-slot', slotIndex: number): void
-  (event: 'toggle-playback-mode'): void
+  (event: 'assign-slot', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
+  (event: 'move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
+  (event: 'clear-slot', payload: { rowIndex: number, slotIndex: number }): void
+  (event: 'select-row', rowIndex: number): void
 }>()
 
-type DragPayload = { kind: 'stored-state' | 'arrangement-slot', index: number }
+type DragPayload = { kind: 'stored-state' | 'arrangement-slot', rowIndex?: number, index: number }
 
 function encodeDragPayload(payload: DragPayload) {
-  return `${payload.kind}:${payload.index}`
+  return payload.kind === 'arrangement-slot'
+    ? `${payload.kind}:${payload.rowIndex}:${payload.index}`
+    : `${payload.kind}:${payload.index}`
 }
 
 function decodeDragPayload(rawValue: string | undefined | null): DragPayload | null {
   if (!rawValue) return null
-  const [kind, rawIndex] = rawValue.split(':')
+  const [kind, firstValue, secondValue] = rawValue.split(':')
   if (kind !== 'stored-state' && kind !== 'arrangement-slot') return null
-  const index = Number(rawIndex)
+  const rowIndex = kind === 'arrangement-slot' ? Number(firstValue) : undefined
+  const index = Number(kind === 'arrangement-slot' ? secondValue : firstValue)
   if (!Number.isInteger(index) || index < 0) return null
-  return { kind, index }
+  if (kind === 'arrangement-slot' && (!Number.isInteger(rowIndex) || rowIndex < 0)) return null
+  return { kind, rowIndex, index }
 }
 
-function startSlotDrag(slotIndex: number, event: DragEvent) {
-  event.dataTransfer?.setData(DRAG_TYPE, encodeDragPayload({ kind: 'arrangement-slot', index: slotIndex }))
-  event.dataTransfer?.setData('text/plain', encodeDragPayload({ kind: 'arrangement-slot', index: slotIndex }))
+function startSlotDrag(rowIndex: number, slotIndex: number, event: DragEvent) {
+  const payload = encodeDragPayload({ kind: 'arrangement-slot', rowIndex, index: slotIndex })
+  event.dataTransfer?.setData(DRAG_TYPE, payload)
+  event.dataTransfer?.setData('text/plain', payload)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
-function handleDrop(slotIndex: number, event: DragEvent) {
+function handleDrop(rowIndex: number, slotIndex: number, event: DragEvent) {
   const payload = decodeDragPayload(event.dataTransfer?.getData(DRAG_TYPE) || event.dataTransfer?.getData('text/plain'))
   if (!payload) return
-  if (payload.kind === 'stored-state') emit('assign-slot', { slotIndex, stateIndex: payload.index })
-  else if (payload.index !== slotIndex) emit('move-slot', { fromIndex: payload.index, toIndex: slotIndex })
+  if (payload.kind === 'stored-state') emit('assign-slot', { rowIndex, slotIndex, stateIndex: payload.index })
+  else if (payload.rowIndex !== undefined && (payload.rowIndex !== rowIndex || payload.index !== slotIndex)) {
+    emit('move-slot', { fromRowIndex: payload.rowIndex, fromIndex: payload.index, toRowIndex: rowIndex, toIndex: slotIndex })
+  }
 }
 
-function clearSlot(slotIndex: number) {
-  emit('clear-slot', slotIndex)
+function clearSlot(rowIndex: number, slotIndex: number) {
+  emit('clear-slot', { rowIndex, slotIndex })
 }
 </script>
 
@@ -105,13 +115,6 @@ function clearSlot(slotIndex: number) {
   display: flex;
   align-items: center;
   gap: .5rem;
-}
-
-.heading-right {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  margin-left: auto;
 }
 
 .section-heading h3 {
@@ -146,6 +149,18 @@ function clearSlot(slotIndex: number) {
   background: var(--teal-deep);
   color: var(--teal-soft);
   box-shadow: 0 0 10px rgba(104, 216, 195, .22);
+}
+
+.rows {
+  display: grid;
+  gap: .5rem;
+}
+
+.arrangement-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: .6rem;
 }
 
 .slots {

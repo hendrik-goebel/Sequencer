@@ -14,7 +14,8 @@ const props = defineProps<{
   storedStates: (StoredArpeggiatorState | null)[]
   activeStoredStateIndex: number | null
   activeArrangementStoredStateIndex: number | null
-  arrangementSlots: (number | null)[]
+  arrangementRows: (number | null)[][]
+  activeArrangementRowIndex: number
   activeArrangementSlotIndex: number | null
   followArrangementView?: boolean
   globalActions: boolean
@@ -22,8 +23,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
+  (event: 'select-arrangement-row', rowIndex: number): void
   (event: 'toggle-global-actions'): void
-  (event: 'toggle-playback-mode'): void
   (event: 'toggle-tone-material', note: number): void
   (event: 'cycle-step', payload: any): void
   (event: 'update-velocity', payload: { index: number, value: number }): void
@@ -41,9 +42,9 @@ const emit = defineEmits<{
   (event: 'store-state'): void
   (event: 'apply-stored-state', index: number): void
   (event: 'clear-stored-state', index: number): void
-  (event: 'arrangement-assign-slot', payload: { slotIndex: number, stateIndex: number }): void
-  (event: 'arrangement-move-slot', payload: { fromIndex: number, toIndex: number }): void
-  (event: 'arrangement-clear-slot', slotIndex: number): void
+  (event: 'arrangement-assign-slot', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
+  (event: 'arrangement-move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
+  (event: 'arrangement-clear-slot', payload: { rowIndex: number, slotIndex: number }): void
 }>()
 
 const ARRANGEMENT_DRAG_TYPE = 'application/x-arpeggiator-arrangement'
@@ -194,13 +195,14 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       </div>
     </div>
     <PatternArranger
-      :arrangement-slots="arrangementSlots"
+      :arrangement-rows="arrangementRows"
+      :active-arrangement-row-index="activeArrangementRowIndex"
       :active-arrangement-slot-index="activeArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
       @move-slot="$emit('arrangement-move-slot', $event)"
       @clear-slot="$emit('arrangement-clear-slot', $event)"
-      @toggle-playback-mode="$emit('toggle-playback-mode')"
+      @select-row="$emit('select-arrangement-row', $event)"
     />
   </section>
 </template>

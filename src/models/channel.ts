@@ -1,7 +1,7 @@
 import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, CircleOfFifthsKey } from '../config'
 
 export type ArrangementSlot = number | null
 export type PlaybackMode = 'state' | 'arrangement'
@@ -32,7 +32,8 @@ export interface Channel {
   microtonesEnabled: boolean
   playbackMode: PlaybackMode
   followArrangementView: boolean
-  arrangementSlots: ArrangementSlot[]
+  arrangementRows: ArrangementSlot[][]
+  arrangementRowIndex: number
   arrangementIndex: number | null
   arpeggiator: ReturnType<typeof createArpeggiator>
   color: string
@@ -89,7 +90,10 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     microtonesEnabled: false,
     playbackMode: 'state' as PlaybackMode,
     followArrangementView: false,
-    arrangementSlots: Array.from({ length: 8 }, () => null) as ArrangementSlot[],
+    arrangementRows: Array.from({ length: ARRANGEMENT_ROW_COUNT }, () =>
+      Array.from({ length: ARRANGEMENT_SLOT_COUNT }, () => null)
+    ) as ArrangementSlot[][],
+    arrangementRowIndex: 0,
     arrangementIndex: null as number | null,
     arpeggiator,
     color: '#c94f5e',

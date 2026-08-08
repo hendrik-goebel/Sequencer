@@ -32,7 +32,8 @@
       :active-stored-state-index="currentActiveStoredStateIndex"
       :active-arrangement-stored-state-index="currentActiveArrangementStateIndex"
       :follow-arrangement-view="currentChannel.followArrangementView"
-      :arrangement-slots="currentChannel.arrangementSlots"
+      :arrangement-rows="currentChannel.arrangementRows"
+      :active-arrangement-row-index="currentChannel.arrangementRowIndex"
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
@@ -42,7 +43,7 @@
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
-      @toggle-playback-mode="handleTogglePlaybackMode"
+      @select-arrangement-row="handleSelectArrangementRow"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
 
@@ -135,7 +136,7 @@ const {
   setArrangementSlot,
   moveArrangementSlot,
   clearArrangementSlot,
-  setPlaybackMode,
+  setArrangementRow,
   toggleFollowArrangementView,
   setFollowArrangementView,
   createSeed,
@@ -178,30 +179,24 @@ function handleClearStoredState(index: number) {
   else clearStoredState(index)
 }
 
-function handleArrangementAssignSlot(payload: { slotIndex: number, stateIndex: number }) {
-  if (globalActions.value) channels.forEach((_, index) => setArrangementSlot(index, payload.slotIndex, payload.stateIndex))
-  else setArrangementSlot(currentIndex.value, payload.slotIndex, payload.stateIndex)
+function handleArrangementAssignSlot(payload: { rowIndex: number, slotIndex: number, stateIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => setArrangementSlot(index, payload.rowIndex, payload.slotIndex, payload.stateIndex))
+  else setArrangementSlot(currentIndex.value, payload.rowIndex, payload.slotIndex, payload.stateIndex)
 }
 
-function handleArrangementMoveSlot(payload: { fromIndex: number, toIndex: number }) {
-  if (globalActions.value) channels.forEach((_, index) => moveArrangementSlot(index, payload.fromIndex, payload.toIndex))
-  else moveArrangementSlot(currentIndex.value, payload.fromIndex, payload.toIndex)
+function handleArrangementMoveSlot(payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => moveArrangementSlot(index, payload.fromRowIndex, payload.fromIndex, payload.toRowIndex, payload.toIndex))
+  else moveArrangementSlot(currentIndex.value, payload.fromRowIndex, payload.fromIndex, payload.toRowIndex, payload.toIndex)
 }
 
-function handleArrangementClearSlot(slotIndex: number) {
-  if (globalActions.value) channels.forEach((_, index) => clearArrangementSlot(index, slotIndex))
-  else clearArrangementSlot(currentIndex.value, slotIndex)
+function handleArrangementClearSlot(payload: { rowIndex: number, slotIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => clearArrangementSlot(index, payload.rowIndex, payload.slotIndex))
+  else clearArrangementSlot(currentIndex.value, payload.rowIndex, payload.slotIndex)
 }
 
-function handleTogglePlaybackMode() {
-  const nextMode = currentChannel.value.playbackMode === 'arrangement' ? 'state' : 'arrangement'
-  if (globalActions.value) channels.forEach((_, index) => setPlaybackMode(index, nextMode))
-  else setPlaybackMode(currentIndex.value, nextMode)
-  if (nextMode === 'arrangement') {
-    if (globalActions.value) channels.forEach((_, index) => setFollowArrangementView(index, true))
-    else setFollowArrangementView(currentIndex.value, true)
-  }
-  if (nextMode === 'arrangement' && !currentChannel.value.playing) togglePlay()
+function handleSelectArrangementRow(rowIndex: number) {
+  if (globalActions.value) channels.forEach((_, index) => setArrangementRow(index, rowIndex))
+  else setArrangementRow(currentIndex.value, rowIndex)
 }
 
 function handleToggleFollowArrangementView() {
