@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -45,6 +45,7 @@ const emit = defineEmits<{
   (event: 'arrangement-assign-slot', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
   (event: 'arrangement-move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'arrangement-clear-slot', payload: { rowIndex: number, slotIndex: number }): void
+  (event: 'add-arrangement-row'): void
 }>()
 
 const ARRANGEMENT_DRAG_TYPE = 'application/x-arpeggiator-arrangement'
@@ -199,10 +200,12 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       :active-arrangement-row-index="activeArrangementRowIndex"
       :active-arrangement-slot-index="activeArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
+      :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
       @move-slot="$emit('arrangement-move-slot', $event)"
       @clear-slot="$emit('arrangement-clear-slot', $event)"
       @select-row="$emit('select-arrangement-row', $event)"
+      @add-row="$emit('add-arrangement-row')"
     />
   </section>
 </template>

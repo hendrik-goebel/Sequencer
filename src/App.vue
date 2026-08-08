@@ -44,6 +44,7 @@
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
       @select-arrangement-row="handleSelectArrangementRow"
+      @add-arrangement-row="handleAddArrangementRow"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
 
@@ -137,6 +138,7 @@ const {
   moveArrangementSlot,
   clearArrangementSlot,
   setArrangementRow,
+  addArrangementRow,
   toggleFollowArrangementView,
   setFollowArrangementView,
   createSeed,
@@ -197,6 +199,11 @@ function handleArrangementClearSlot(payload: { rowIndex: number, slotIndex: numb
 function handleSelectArrangementRow(rowIndex: number) {
   if (globalActions.value) channels.forEach((_, index) => setArrangementRow(index, rowIndex))
   else setArrangementRow(currentIndex.value, rowIndex)
+}
+
+function handleAddArrangementRow() {
+  if (globalActions.value) channels.forEach((_, index) => addArrangementRow(index))
+  else addArrangementRow(currentIndex.value)
 }
 
 function handleToggleFollowArrangementView() {

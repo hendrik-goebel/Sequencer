@@ -4,6 +4,12 @@
       <div class="heading-title">
         <h3>ARRANGE</h3>
       </div>
+      <button
+        type="button"
+        class="add-row-button"
+        :disabled="arrangementRows.length >= maxRows"
+        @click="$emit('add-row')"
+      >Add row</button>
     </div>
 
     <div class="rows">
@@ -45,6 +51,7 @@ const props = defineProps<{
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
+  maxRows: number
 }>()
 
 const emit = defineEmits<{
@@ -52,6 +59,7 @@ const emit = defineEmits<{
   (event: 'move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'clear-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'select-row', rowIndex: number): void
+  (event: 'add-row'): void
 }>()
 
 type DragPayload = { kind: 'stored-state' | 'arrangement-slot', rowIndex?: number, index: number }
@@ -130,6 +138,27 @@ function clearSlot(rowIndex: number, slotIndex: number) {
   font-size: .55rem;
   font-weight: 800;
   letter-spacing: .08em;
+}
+
+.add-row-button {
+  justify-self: end;
+  border: 1px solid var(--teal);
+  border-radius: 4px;
+  padding: .35rem .6rem;
+  background: var(--teal-deep);
+  color: var(--teal-soft);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+
+.add-row-button:disabled {
+  border-color: var(--line-strong);
+  background: var(--bg-control);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: .65;
 }
 
 .enabled-button {
