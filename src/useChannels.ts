@@ -1057,10 +1057,21 @@ export function useChannels() {
     return null
   }
 
+  function selectNextEmptyStoredState(channelIndex: number, storedStateIndex: number) {
+    const states = storedStates.value[channelIndex]
+    for (let index = storedStateIndex + 1; index < states.length; index++) {
+      if (!states[index]) {
+        activeStoredStateIndexes.value[channelIndex] = index
+        return
+      }
+    }
+  }
+
   function storeCurrentState() {
     const channelIndex = currentIndex.value
     const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
     storedStates.value[channelIndex][selectedIndex] = snapshotChannelState(currentChannel.value)
+    selectNextEmptyStoredState(channelIndex, selectedIndex)
   }
 
   function applyStoredState(index: number) {
@@ -1083,6 +1094,7 @@ export function useChannels() {
     channels.forEach((channel, channelIndex) => {
       const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
       storedStates.value[channelIndex][selectedIndex] = snapshotChannelState(channel)
+      selectNextEmptyStoredState(channelIndex, selectedIndex)
     })
   }
 
