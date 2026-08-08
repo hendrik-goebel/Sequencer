@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_EDITOR_OCTAVES, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -20,7 +20,7 @@ const props = defineProps<{
   globalActions: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
   (event: 'toggle-global-actions'): void
   (event: 'toggle-playback-mode'): void
@@ -31,7 +31,7 @@ defineEmits<{
   (event: 'enable-midi'): void
   (event: 'update-pattern', value: any): void
   (event: 'update-noteLength', value: number): void
-  (event: 'update-octave', value: number): void
+  (event: 'update-octaves', value: number[]): void
   (event: 'clear-notes'): void
   (event: 'update-loop-length', value: number): void
   (event: 'update-quant', value: number): void
@@ -77,17 +77,34 @@ const base = computed(() => visualChannel.value?.base ?? DEFAULT_BASE)
 const toneMaterialNotes = computed(() => visualChannel.value ? getToneMaterials(visualChannel.value) : [])
 const fullNotes = computed(() => {
   const step = visualChannel.value?.microtonesEnabled ? MICROTONAL_STEP : 1
-  const length = visualChannel.value?.microtonesEnabled
-    ? KEYBOARD_OCTAVE_SIZE * NOTE_EDITOR_OCTAVES * 2
-    : KEYBOARD_OCTAVE_SIZE * NOTE_EDITOR_OCTAVES
-  return Array.from({ length }, (_, i) => base.value + i * step).reverse()
+  return ARPEGGIO_OCTAVES.flatMap(octave => {
+    const octaveBase = KEYBOARD_OCTAVE_SIZE * (octave + 1)
+    const length = visualChannel.value?.microtonesEnabled
+      ? KEYBOARD_OCTAVE_SIZE * 2
+      : KEYBOARD_OCTAVE_SIZE
+    return Array.from({ length }, (_, i) => octaveBase + i * step)
+  }).reverse()
 })
 const displayedNotes = computed(() => visualChannel.value?.reduceNotes
-  ? fullNotes.value.filter(note =>
+  ? fullNotes.value.filter(note => isDisplayedOctave(note) && (
       toneMaterialNotes.value.includes(note) ||
       (visualChannel.value?.microtonesEnabled &&
-        toneMaterialNotes.value.includes(note - MICROTONAL_STEP)))
-  : fullNotes.value)
+        toneMaterialNotes.value.includes(note - MICROTONAL_STEP))))
+  : fullNotes.value.filter(isDisplayedOctave))
+
+function isDisplayedOctave(note: number) {
+  const selectedOctaves = visualChannel.value?.selectedOctaves ?? [visualChannel.value?.octave]
+  const octave = Math.floor(note / KEYBOARD_OCTAVE_SIZE) - 1
+  return selectedOctaves.includes(octave)
+}
+
+function toggleEditorOctave(octave: number, event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  const selectedOctaves = new Set(visualChannel.value?.selectedOctaves ?? [])
+  if (checked) selectedOctaves.add(octave)
+  else selectedOctaves.delete(octave)
+  emit('update-octaves', [...selectedOctaves])
+}
 
 function encodeDragPayload(kind: 'stored-state', index: number) {
   return `${kind}:${index}`
@@ -115,11 +132,20 @@ function startStoredStateDrag(index: number, event: DragEvent) {
         <label>Quantisation <StepperControl :value="visualChannel.quantisation" :values="[1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
         <label>Loop length <span class="value-input"><input type="number" :value="visualChannel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
         <label>Note length <StepperControl :value="visualChannel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
-        <label>Octave
-          <select :value="visualChannel.octave" @change="$emit('update-octave', +$event.target.value)">
-            <option v-for="octave in ARPEGGIO_OCTAVES" :key="octave" :value="octave">C{{ octave }}</option>
-          </select>
-        </label>
+        <div class="octave-control">
+          <span>Octave</span>
+          <div class="octave-options" role="group" aria-label="Editor octaves">
+            <label v-for="octave in ARPEGGIO_OCTAVES" :key="octave" class="octave-option">
+              <input
+                type="checkbox"
+                :checked="visualChannel.selectedOctaves?.includes(octave)"
+                :aria-label="`Show octave ${octave}`"
+                @change="toggleEditorOctave(octave, $event)"
+              />
+              C{{ octave }}
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -201,6 +227,10 @@ h2 { color: #effaff; font-size: 1.15rem; letter-spacing: .08em; }
 .control-column label { display: grid; gap: .38rem; }
 select, input { min-width: 0; box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 4px; padding: .45rem .5rem; background: var(--bg-control); color: #e7f6fb; font: 600 .75rem ui-monospace, monospace; outline: none; }
 select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(104, 216, 195, .12); }
+.octave-control { display: grid; gap: .38rem; }
+.octave-options { display: flex; flex-wrap: wrap; gap: .35rem .6rem; }
+.octave-option { display: flex !important; align-items: center; gap: .25rem; color: #e7f6fb !important; cursor: pointer; letter-spacing: .04em !important; white-space: nowrap; }
+.octave-option input { width: .85rem; height: .85rem; margin: 0; padding: 0; accent-color: var(--teal); cursor: pointer; }
 .value-input { display: flex; align-items: center; border-bottom: 1px solid var(--line-strong); }
 .value-input input { width: 100%; border: 0; border-radius: 0; background: transparent; padding: .35rem 0; }
 .value-input small { color: var(--teal); font-size: .55rem; }

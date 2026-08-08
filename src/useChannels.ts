@@ -376,6 +376,21 @@ export function useChannels() {
     channel.arpeggiator.setSteps(channel.steps)
   }
 
+  function updateEditorOctaves(octaves: number[]) {
+    const selectedOctaves = [...new Set(octaves)]
+      .filter(octave => ARPEGGIO_OCTAVES.includes(octave))
+      .sort((a, b) => a - b)
+
+    channelEditorOctaves(currentChannel.value, selectedOctaves)
+  }
+
+  function channelEditorOctaves(channel: typeof channels[number], selectedOctaves: number[]) {
+    channel.selectedOctaves = selectedOctaves
+    if (selectedOctaves.length === 1 && selectedOctaves[0] !== channel.octave) {
+      updateArpeggioOctave(selectedOctaves[0])
+    }
+  }
+
   function updateVelocity(payload: { index: number, value: number }) {
     const channel = currentChannel.value
     if (!Number.isInteger(payload.index) || payload.index < 0 || payload.index >= channel.loopLength) return
@@ -508,6 +523,7 @@ export function useChannels() {
       channel.quantisation = quantisation
       channel.noteLength = noteLength
       channel.octave = octave
+      channel.selectedOctaves = [octave]
       channel.arpeggioLength = arpeggioLength
       channel.loopLength = loopLength
       channel.arpeggiator.setPattern(pattern)
@@ -974,6 +990,7 @@ export function useChannels() {
     target.steps = source.steps.map(cloneStep)
     target.base = source.base
     target.octave = source.octave
+    target.selectedOctaves = source.selectedOctaves.slice()
     target.loopLength = source.loopLength
     target.arpeggioLength = source.arpeggioLength
     target.quantisation = source.quantisation
@@ -1097,6 +1114,7 @@ export function useChannels() {
     updateQuantisation,
     updateLoopLength,
     updateArpeggioOctave,
+    updateEditorOctaves,
     shiftCurrentChannelNotes,
     shiftAllChannelNotes,
     shiftArrangementNotes,

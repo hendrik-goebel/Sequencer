@@ -23,6 +23,7 @@ export interface Channel {
   velocities?: number[]
   base: number
   octave: number
+  selectedOctaves: number[]
   loopLength: number
   arpeggioLength: number
   midiChannel: number
@@ -78,6 +79,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
     octave: DEFAULT_ARPEGGIO_OCTAVE,
+    selectedOctaves: [DEFAULT_ARPEGGIO_OCTAVE],
     loopLength: DEFAULT_STEPS.length,
     arpeggioLength: 4,
     midiChannel: index + 1,

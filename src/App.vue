@@ -34,7 +34,7 @@
       :arrangement-slots="currentChannel.arrangementSlots"
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
-      @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octave="updateArpeggioOctave" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
+      @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="globalActions = !globalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
@@ -116,6 +116,7 @@ const {
   updateArpeggioLength,
   updateQuantisation,
   updateArpeggioOctave,
+  updateEditorOctaves,
   shiftCurrentChannelNotes: shiftCurrentChannelNotesForChannel,
   shiftAllChannelNotes,
   shiftArrangementNotes,
