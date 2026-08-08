@@ -33,7 +33,7 @@ export interface Channel {
   playbackMode: PlaybackMode
   followArrangementView: boolean
   arrangementRows: ArrangementSlot[][]
-  arrangementRowIndex: number
+  arrangementRowIndex: number | null
   arrangementIndex: number | null
   arpeggiator: ReturnType<typeof createArpeggiator>
   color: string
@@ -93,7 +93,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     arrangementRows: Array.from({ length: ARRANGEMENT_ROW_COUNT }, () =>
       Array.from({ length: ARRANGEMENT_SLOT_COUNT }, () => null)
     ) as ArrangementSlot[][],
-    arrangementRowIndex: 0,
+    arrangementRowIndex: null as number | null,
     arrangementIndex: null as number | null,
     arpeggiator,
     color: '#c94f5e',

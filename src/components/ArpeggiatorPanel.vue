@@ -15,7 +15,7 @@ const props = defineProps<{
   activeStoredStateIndex: number | null
   activeArrangementStoredStateIndex: number | null
   arrangementRows: (number | null)[][]
-  activeArrangementRowIndex: number
+  activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
   followArrangementView?: boolean
   globalActions: boolean

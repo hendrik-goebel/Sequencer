@@ -17,7 +17,7 @@ interface SeedChannelState extends StoredArpeggiatorState {
   followArrangementView?: boolean
   arrangementSlots?: (number | null)[]
   arrangementRows?: (number | null)[][]
-  arrangementRowIndex?: number
+  arrangementRowIndex?: number | null
   arrangementIndex?: number | null
 }
 
@@ -125,12 +125,22 @@ export function useChannels() {
   }
 
   function primeArrangement(channel: Channel) {
+    if (channel.arrangementRowIndex === null) {
+      channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
+      return
+    }
     const firstSlot = findArrangementSlot(channel, channel.arrangementRowIndex, null)
     if (firstSlot !== null) applyArrangementSlot(channel, channel.arrangementRowIndex, firstSlot)
     else channel.arrangementIndex = null
   }
 
   function advanceArrangement(channel: Channel) {
+    if (channel.arrangementRowIndex === null) {
+      channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
+      return
+    }
     const nextSlot = findArrangementSlot(channel, channel.arrangementRowIndex, channel.arrangementIndex)
     if (nextSlot === null) {
       channel.arrangementIndex = null
@@ -140,6 +150,11 @@ export function useChannels() {
   }
 
   function normalizeArrangement(channel: Channel) {
+    if (channel.arrangementRowIndex === null) {
+      channel.arrangementIndex = null
+      activeArrangementStateIndexes.value[channel.id] = null
+      return
+    }
     if (channel.arrangementIndex === null) {
       channel.arrangementIndex = findArrangementSlot(channel, channel.arrangementRowIndex, null)
       return
@@ -829,7 +844,9 @@ export function useChannels() {
     }))
     const activeStateIndex = channel.arrangementIndex === null
       ? null
-      : channel.arrangementRows[channel.arrangementRowIndex][channel.arrangementIndex]
+      : channel.arrangementRowIndex === null
+        ? null
+        : channel.arrangementRows[channel.arrangementRowIndex][channel.arrangementIndex]
     const activeState = activeStateIndex === null || activeStateIndex === undefined
       ? null
       : storedStates.value[channelIndex][activeStateIndex]
@@ -952,7 +969,7 @@ export function useChannels() {
       (!('followArrangementView' in value) || typeof value.followArrangementView === 'boolean') &&
       (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && (value.arrangementSlots.length === STORED_STATE_COUNT || value.arrangementSlots.length === ARRANGEMENT_SLOT_COUNT) && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
       (!('arrangementRows' in value) || (Array.isArray(value.arrangementRows) && value.arrangementRows.length === ARRANGEMENT_ROW_COUNT && value.arrangementRows.every(row => Array.isArray(row) && row.length === ARRANGEMENT_SLOT_COUNT && row.every(slot => slot === null || isValidStoredStateIndex(slot))))) &&
-      (!('arrangementRowIndex' in value) || (typeof value.arrangementRowIndex === 'number' && Number.isInteger(value.arrangementRowIndex) && value.arrangementRowIndex >= 0 && value.arrangementRowIndex < ARRANGEMENT_ROW_COUNT)) &&
+      (!('arrangementRowIndex' in value) || value.arrangementRowIndex === null || (typeof value.arrangementRowIndex === 'number' && Number.isInteger(value.arrangementRowIndex) && value.arrangementRowIndex >= 0 && value.arrangementRowIndex < ARRANGEMENT_ROW_COUNT)) &&
       (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < ARRANGEMENT_SLOT_COUNT))
   }
 
@@ -1029,7 +1046,7 @@ export function useChannels() {
       channel.arrangementRows = createArrangementRows(state.arrangementRows, state.arrangementSlots)
       channel.arrangementRowIndex = typeof state.arrangementRowIndex === 'number'
         ? Math.max(0, Math.min(ARRANGEMENT_ROW_COUNT - 1, Math.floor(state.arrangementRowIndex)))
-        : 0
+        : null
       channel.arrangementIndex = typeof state.arrangementIndex === 'number'
         ? Math.max(0, Math.min(ARRANGEMENT_SLOT_COUNT - 1, Math.floor(state.arrangementIndex)))
         : null

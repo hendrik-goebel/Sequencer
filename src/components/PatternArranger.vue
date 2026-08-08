@@ -42,7 +42,7 @@ const DRAG_TYPE = 'application/x-arpeggiator-arrangement'
 
 const props = defineProps<{
   arrangementRows: (number | null)[][]
-  activeArrangementRowIndex: number
+  activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
 }>()
