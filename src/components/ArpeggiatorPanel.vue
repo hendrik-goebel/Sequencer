@@ -213,6 +213,12 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         :disabled="channel.playbackMode !== 'arrangement'"
         @click="$emit('toggle-follow-arrangement-view')"
       >follow</button>
+      <button
+        class="follow-button"
+        :class="{ active: arrangementReferenceMode }"
+        :aria-pressed="arrangementReferenceMode"
+        @click="$emit('toggle-arrangement-reference-mode')"
+      >reference</button>
       <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
       <div class="stored-states">
         <button
@@ -246,7 +252,6 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       :selected-arrangement-row-index="selectedArrangementRowIndex"
       :selected-arrangement-slot-index="selectedArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
-      :reference-mode="arrangementReferenceMode"
       :follow-arrangement-view="followArrangementView"
       :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
@@ -256,7 +261,6 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       @select-slot="$emit('select-arrangement-slot', $event)"
       @add-row="$emit('add-arrangement-row')"
       @toggle-playback-mode="$emit('toggle-arrangement-playback')"
-      @toggle-reference-mode="$emit('toggle-arrangement-reference-mode')"
     />
   </section>
 </template>

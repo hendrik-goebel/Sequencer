@@ -13,13 +13,6 @@
       >Play arrangement</button>
       <button
         type="button"
-        class="arrangement-toggle"
-        :class="{ active: referenceMode }"
-        :aria-pressed="referenceMode"
-        @click="$emit('toggle-reference-mode')"
-      >Reference</button>
-      <button
-        type="button"
         class="add-row-button"
         :disabled="arrangementRows.length >= maxRows"
         @click="$emit('add-row')"
@@ -72,7 +65,6 @@ const props = defineProps<{
   selectedArrangementRowIndex: number | null
   selectedArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
-  referenceMode: boolean
   followArrangementView?: boolean
   maxRows: number
 }>()
@@ -85,7 +77,6 @@ const emit = defineEmits<{
   (event: 'select-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'add-row'): void
   (event: 'toggle-playback-mode'): void
-  (event: 'toggle-reference-mode'): void
 }>()
 
 type DragPayload = { kind: 'stored-state' | 'arrangement-slot', rowIndex?: number, index: number }
