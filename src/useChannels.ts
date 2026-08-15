@@ -699,6 +699,7 @@ export function useChannels() {
       channel.arpeggiator.setNotes(channel.notes)
       channel.arpeggiator.setSteps(channel.steps)
       persistArrangementSlotState(channel)
+      if (index === currentIndex.value) markCurrentStoredStateDirty()
       return
     }
     const length = Math.max(1, Math.min(32, Math.floor(channel.arpeggioLength)))
@@ -783,6 +784,7 @@ export function useChannels() {
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
     persistArrangementSlotState(channel)
+    if (index === currentIndex.value) markCurrentStoredStateDirty()
   }
 
   function createGlobalVariation() {
@@ -985,6 +987,7 @@ export function useChannels() {
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
     persistArrangementSlotState(channel)
+    if (channel.id === currentIndex.value) markCurrentStoredStateDirty()
   }
 
   function shiftChannelNotes(channel: typeof channels[number], direction: 1 | -1) {
@@ -1015,6 +1018,7 @@ export function useChannels() {
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
     persistArrangementSlotState(channel)
+    if (channel.id === currentIndex.value) markCurrentStoredStateDirty()
   }
 
   function shiftCurrentChannelNotes(direction: 1 | -1) {

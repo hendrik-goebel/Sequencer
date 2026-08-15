@@ -11,6 +11,7 @@ interface KeyboardHandlers {
   createGlobalVariation: () => void
   shiftCurrentChannelNotes: (direction: 1 | -1) => void
   shiftCurrentToneMaterial: (direction: 1 | -1) => void
+  storeState: () => void
   playKeyboardNote: (key: string) => boolean
 }
 
@@ -66,6 +67,11 @@ export function useKeyboard(handlers: KeyboardHandlers) {
       }
       if (key === 'v') {
         handlers.createVariation(handlers.currentIndex.value)
+        event.preventDefault()
+        return
+      }
+      if (key === 's') {
+        handlers.storeState()
         event.preventDefault()
         return
       }
