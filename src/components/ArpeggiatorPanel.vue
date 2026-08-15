@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS, STORED_STATE_COUNT } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -51,6 +51,7 @@ const emit = defineEmits<{
   (event: 'arrangement-assign-slot', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
   (event: 'arrangement-move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'arrangement-clear-slot', payload: { rowIndex: number, slotIndex: number }): void
+  (event: 'move-arrangement-slot-to-state', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
   (event: 'add-arrangement-row'): void
 }>()
 
@@ -62,7 +63,7 @@ const displayedStoredStateIndex = computed(() =>
     : props.activeStoredStateIndex
 )
 
-const editorLibraryStates = computed(() => props.storedStates.slice(0, STORED_STATE_COUNT))
+const editorLibraryStates = computed(() => props.storedStates)
 
 const visualChannel = computed(() => {
   if (!props.channel) return props.channel
@@ -127,6 +128,22 @@ function startStoredStateDrag(index: number, event: DragEvent) {
   event.dataTransfer?.setData(ARRANGEMENT_DRAG_TYPE, payload)
   event.dataTransfer?.setData('text/plain', payload)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
+}
+
+function getArrangementSlotDragPayload(event: DragEvent) {
+  const value = event.dataTransfer?.getData(ARRANGEMENT_DRAG_TYPE) || event.dataTransfer?.getData('text/plain')
+  const [kind, rowIndex, slotIndex] = value?.split(':') ?? []
+  if (kind !== 'arrangement-slot') return null
+  const row = Number(rowIndex)
+  const slot = Number(slotIndex)
+  return Number.isInteger(row) && row >= 0 && Number.isInteger(slot) && slot >= 0
+    ? { rowIndex: row, slotIndex: slot }
+    : null
+}
+
+function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) {
+  const payload = getArrangementSlotDragPayload(event)
+  if (payload) emit('move-arrangement-slot-to-state', { ...payload, stateIndex })
 }
 </script>
 
@@ -199,6 +216,8 @@ function startStoredStateDrag(index: number, event: DragEvent) {
           :draggable="Boolean(editorLibraryStates[index])"
           :aria-label="`${editorLibraryStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
           @dragstart="editorLibraryStates[index] && startStoredStateDrag(index, $event)"
+          @dragover.prevent
+          @drop.prevent="moveArrangementSlotToStoredState(index, $event)"
           @click="$emit('apply-stored-state', index)"
           @dblclick="$emit('clear-stored-state', index)"
         >{{ index + 1 }}</button>

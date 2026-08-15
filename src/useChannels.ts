@@ -1371,6 +1371,22 @@ export function useChannels() {
     setArrangementSlot(channelIndex, rowIndex, slotIndex, null)
   }
 
+  function moveArrangementSlotToStoredState(channelIndex: number, rowIndex: number, slotIndex: number, _targetStateIndex: number) {
+    const channel = channels[channelIndex]
+    const sourceStateIndex = channel?.arrangementRows[rowIndex]?.[slotIndex]
+    if (!channel || !isValidStoredStateIndex(sourceStateIndex)) return
+
+    const sourceState = storedStates.value[channelIndex][sourceStateIndex]
+    if (!sourceState) return
+    channel.arrangementRows[rowIndex][slotIndex] = null
+    activeStoredStateIndexes.value[channelIndex] = sourceStateIndex
+    const selectedSlot = selectedArrangementSlots.value[channelIndex]
+    if (selectedSlot.rowIndex === rowIndex && selectedSlot.slotIndex === slotIndex) {
+      selectedArrangementSlots.value[channelIndex] = { rowIndex: null, slotIndex: null }
+    }
+    normalizeArrangement(channel)
+  }
+
   function setArrangementSlots(channelIndex: number, slots: (number | null)[]) {
     const channel = channels[channelIndex]
     if (!channel) return
@@ -1465,6 +1481,7 @@ export function useChannels() {
     setArrangementSlot,
     moveArrangementSlot,
     clearArrangementSlot,
+    moveArrangementSlotToStoredState,
     setArrangementSlots,
     addArrangementRow,
     setArrangementRow,

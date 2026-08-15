@@ -46,6 +46,7 @@
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
+      @move-arrangement-slot-to-state="handleMoveArrangementSlotToState"
       @select-arrangement-row="handleSelectArrangementRow"
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
@@ -144,6 +145,7 @@ const {
   setArrangementSlot,
   moveArrangementSlot,
   clearArrangementSlot,
+  moveArrangementSlotToStoredState,
   setArrangementRow,
   selectArrangementSlot,
   addArrangementRow,
@@ -204,6 +206,14 @@ function handleArrangementMoveSlot(payload: { fromRowIndex: number, fromIndex: n
 function handleArrangementClearSlot(payload: { rowIndex: number, slotIndex: number }) {
   if (globalActions.value) channels.forEach((_, index) => clearArrangementSlot(index, payload.rowIndex, payload.slotIndex))
   else clearArrangementSlot(currentIndex.value, payload.rowIndex, payload.slotIndex)
+}
+
+function handleMoveArrangementSlotToState(payload: { rowIndex: number, slotIndex: number, stateIndex: number }) {
+  if (globalActions.value) {
+    channels.forEach((_, index) => moveArrangementSlotToStoredState(index, payload.rowIndex, payload.slotIndex, payload.stateIndex))
+  } else {
+    moveArrangementSlotToStoredState(currentIndex.value, payload.rowIndex, payload.slotIndex, payload.stateIndex)
+  }
 }
 
 function handleSelectArrangementRow(rowIndex: number) {
