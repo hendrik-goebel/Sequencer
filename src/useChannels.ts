@@ -62,6 +62,8 @@ export function useChannels() {
   const currentActiveStoredStateIndex = computed(() => activeStoredStateIndexes.value[currentIndex.value])
   const activeArrangementStateIndexes = ref<(number | null)[]>(channels.map(() => null))
   const currentActiveArrangementStateIndex = computed(() => activeArrangementStateIndexes.value[currentIndex.value])
+  const selectedArrangementSlots = ref(channels.map(() => ({ rowIndex: null as number | null, slotIndex: null as number | null })))
+  const currentSelectedArrangementSlot = computed(() => selectedArrangementSlots.value[currentIndex.value])
 
   const globalBpm = ref(DEFAULT_BPM)
   const globalKey = ref<CircleOfFifthsKey>('C')
@@ -432,6 +434,7 @@ export function useChannels() {
     if (!state) return
 
     activeStoredStateIndexes.value[channelIndex] = storedStateIndex
+    selectedArrangementSlots.value[channelIndex] = { rowIndex, slotIndex }
     channel.followArrangementView = false
   }
 
@@ -1384,6 +1387,7 @@ export function useChannels() {
     currentStoredStates,
     currentActiveStoredStateIndex,
     currentActiveArrangementStateIndex,
+    currentSelectedArrangementSlot,
     storeCurrentState,
     applyStoredState,
     clearStoredState,

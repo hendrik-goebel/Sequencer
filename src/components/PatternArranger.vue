@@ -34,7 +34,11 @@
             :key="slotIndex"
             type="button"
             class="slot"
-            :class="{ filled: slot !== null, active: activeArrangementRowIndex === rowIndex && activeArrangementSlotIndex === slotIndex && playbackMode === 'arrangement' }"
+            :class="{
+              filled: slot !== null,
+              active: activeArrangementRowIndex === rowIndex && activeArrangementSlotIndex === slotIndex && playbackMode === 'arrangement',
+              selected: selectedArrangementRowIndex === rowIndex && selectedArrangementSlotIndex === slotIndex
+            }"
             :draggable="slot !== null"
             @dragstart="slot !== null && startSlotDrag(rowIndex, slotIndex, $event)"
             @dragover.prevent
@@ -58,6 +62,8 @@ const props = defineProps<{
   arrangementRows: (number | null)[][]
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
+  selectedArrangementRowIndex: number | null
+  selectedArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
   maxRows: number
 }>()
@@ -255,6 +261,11 @@ function clearSlot(rowIndex: number, slotIndex: number) {
   background: var(--teal-deep);
   color: var(--teal-soft);
   box-shadow: 0 0 10px rgba(104, 216, 195, .28);
+}
+
+.slot.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(216, 182, 108, .35), 0 0 10px rgba(216, 182, 108, .28);
 }
 
 .slot-number {

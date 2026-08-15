@@ -17,6 +17,8 @@ const props = defineProps<{
   arrangementRows: (number | null)[][]
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
+  selectedArrangementRowIndex: number | null
+  selectedArrangementSlotIndex: number | null
   followArrangementView?: boolean
   globalActions: boolean
 }>()
@@ -187,6 +189,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
           class="stored-state-button"
           :class="{
             active: index === displayedStoredStateIndex,
+            selected: index === activeStoredStateIndex,
             empty: !storedStates[index]
           }"
           :draggable="Boolean(storedStates[index])"
@@ -201,6 +204,8 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       :arrangement-rows="arrangementRows"
       :active-arrangement-row-index="activeArrangementRowIndex"
       :active-arrangement-slot-index="activeArrangementSlotIndex"
+      :selected-arrangement-row-index="selectedArrangementRowIndex"
+      :selected-arrangement-slot-index="selectedArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
       :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
@@ -377,6 +382,10 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
   background: var(--teal-deep);
   color: var(--teal-soft);
   box-shadow: 0 0 10px rgba(104, 216, 195, .28);
+}
+.stored-state-button.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(216, 182, 108, .35), 0 0 10px rgba(216, 182, 108, .28);
 }
 .section-label { display: flex; justify-content: space-between; margin: 0 0 .6rem; }
 .section-label span { color: #52636f; font-size: .55rem; }
