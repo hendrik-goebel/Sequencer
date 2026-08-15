@@ -29,6 +29,7 @@
 
     <ArpeggiatorPanel :channel="currentChannel" :global-actions="globalActions" :log="log"
       :stored-states="currentStoredStates"
+      :stored-state-dirty="currentStoredStateDirty"
       :active-stored-state-index="currentActiveStoredStateIndex"
       :active-arrangement-stored-state-index="currentActiveArrangementStateIndex"
       :follow-arrangement-view="currentChannel.followArrangementView"
@@ -134,6 +135,7 @@ const {
   shiftArrangementNotes,
   shiftAllArrangementNotes,
   currentStoredStates,
+  currentStoredStateDirty,
   currentActiveStoredStateIndex,
   currentActiveArrangementStateIndex,
   currentSelectedArrangementSlot,

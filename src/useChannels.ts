@@ -61,6 +61,10 @@ export function useChannels() {
   const currentStoredStates = computed(() => storedStates.value[currentIndex.value])
   const activeStoredStateIndexes = ref<(number | null)[]>(channels.map(() => 0))
   const currentActiveStoredStateIndex = computed(() => activeStoredStateIndexes.value[currentIndex.value])
+  const storedStateDirty = ref<boolean[][]>(channels.map(() => Array.from({ length: STORED_STATE_COUNT }, () => false)))
+  const currentStoredStateDirty = computed(() =>
+    storedStates.value[currentIndex.value].map((_, index) => storedStateDirty.value[currentIndex.value][index] ?? false)
+  )
   const activeArrangementStateIndexes = ref<(number | null)[]>(channels.map(() => null))
   const currentActiveArrangementStateIndex = computed(() => activeArrangementStateIndexes.value[currentIndex.value])
   const selectedArrangementSlots = ref(channels.map(() => ({ rowIndex: null as number | null, slotIndex: null as number | null })))
@@ -323,6 +327,7 @@ export function useChannels() {
       channel.additionalNotes = [...new Set([...channel.additionalNotes, ...octaveNotes])].sort((a, b) => a - b)
     }
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function shiftCurrentToneMaterial(direction: 1 | -1) {
@@ -448,6 +453,7 @@ export function useChannels() {
     const state = storedStates.value[channelIndex][storedStateIndex]
     if (!state) return
 
+    clearPreviousStoredStateDirty(channelIndex, storedStateIndex)
     activeStoredStateIndexes.value[channelIndex] = storedStateIndex
     selectedArrangementSlots.value[channelIndex] = { rowIndex, slotIndex }
     channel.followArrangementView = false
@@ -462,6 +468,20 @@ export function useChannels() {
     const storedStateIndex = channel.arrangementRows[rowIndex]?.[slotIndex]
     if (!isValidStoredStateIndex(storedStateIndex)) return
     storedStates.value[channel.id][storedStateIndex] = snapshotChannelState(channel)
+  }
+
+  function markCurrentStoredStateDirty() {
+    const channel = currentChannel.value
+    if (getEditableArrangementState(channel)) return
+    const stateIndex = activeStoredStateIndexes.value[currentIndex.value]
+    if (isValidStoredStateIndex(stateIndex)) storedStateDirty.value[currentIndex.value][stateIndex] = true
+  }
+
+  function clearPreviousStoredStateDirty(channelIndex: number, nextStateIndex: number) {
+    const previousStateIndex = activeStoredStateIndexes.value[channelIndex]
+    if (previousStateIndex !== nextStateIndex && isValidStoredStateIndex(previousStateIndex)) {
+      storedStateDirty.value[channelIndex][previousStateIndex] = false
+    }
   }
 
   function getEditableArrangementState(channel: Channel) {
@@ -498,6 +518,7 @@ export function useChannels() {
         if (!arrangementState) {
           channel.arpeggiator.setSteps(channel.steps)
           persistArrangementSlotState(channel)
+          markCurrentStoredStateDirty()
         }
         return
       }
@@ -515,6 +536,7 @@ export function useChannels() {
       if (!arrangementState) {
         channel.arpeggiator.setSteps(channel.steps)
         persistArrangementSlotState(channel)
+        markCurrentStoredStateDirty()
       }
       return
     }
@@ -575,6 +597,7 @@ export function useChannels() {
       channel.arpeggiator.setNotes(channel.notes)
       channel.arpeggiator.setSteps(channel.steps)
       persistArrangementSlotState(channel)
+      markCurrentStoredStateDirty()
     }
   }
 
@@ -632,6 +655,7 @@ export function useChannels() {
     channel.velocities[payload.index] = Math.max(0, Math.min(127, Math.round(payload.value)))
     channel.arpeggiator.setVelocities(channel.velocities)
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function clearNotes(){
@@ -647,6 +671,7 @@ export function useChannels() {
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function variationChangeCount(maximum: number) {
@@ -834,6 +859,7 @@ export function useChannels() {
     channel.arpeggiator.setPattern(pattern)
     channel.pattern = pattern
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
   function updateChannelKey(index: number, key: string) {
     const channel = channels[index]
@@ -851,6 +877,7 @@ export function useChannels() {
     channel.arpeggiator.setNoteLength(length)
     channel.noteLength = length
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
   function updateArpeggioLength(length:number){
     const channel = currentChannel.value
@@ -861,6 +888,7 @@ export function useChannels() {
     }
     channel.arpeggioLength = Math.max(1, Math.min(32, Math.floor(length)))
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
   function updateLoopLength(length:number){
     const channel = currentChannel.value
@@ -897,6 +925,7 @@ export function useChannels() {
       if (typeof channel.arpeggiator.setSteps === 'function') channel.arpeggiator.setSteps(channel.steps)
     }
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function updateQuantisation(q:number){
@@ -910,6 +939,7 @@ export function useChannels() {
     channel.quantisation = newQ
     if (typeof channel.arpeggiator.setSubdivision === 'function') channel.arpeggiator.setSubdivision(newQ)
     persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function updateArpeggioOctave(octave: number) {
@@ -1250,11 +1280,13 @@ export function useChannels() {
     const channelIndex = currentIndex.value
     const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
     storedStates.value[channelIndex][selectedIndex] = snapshotChannelState(currentChannel.value)
+    storedStateDirty.value[channelIndex][selectedIndex] = false
     selectNextEmptyStoredState(channelIndex, selectedIndex)
   }
 
   function applyStoredState(index: number) {
     const state = storedStates.value[currentIndex.value][index]
+    clearPreviousStoredStateDirty(currentIndex.value, index)
     activeStoredStateIndexes.value[currentIndex.value] = index
     if (!state) return
 
@@ -1264,6 +1296,7 @@ export function useChannels() {
 
   function clearStoredState(index: number) {
     storedStates.value[currentIndex.value][index] = null
+    storedStateDirty.value[currentIndex.value][index] = false
     if (activeStoredStateIndexes.value[currentIndex.value] === index) {
       activeStoredStateIndexes.value[currentIndex.value] = null
     }
@@ -1274,6 +1307,7 @@ export function useChannels() {
     const sourceState = storedStates.value[channelIndex]?.[fromIndex]
     if (!sourceState) return
     storedStates.value[channelIndex][toIndex] = cloneStoredState(sourceState)
+    storedStateDirty.value[channelIndex][toIndex] = false
     activeStoredStateIndexes.value[channelIndex] = toIndex
   }
 
@@ -1477,6 +1511,7 @@ export function useChannels() {
     shiftAllArrangementNotes,
     storedStates,
     currentStoredStates,
+    currentStoredStateDirty,
     currentActiveStoredStateIndex,
     currentActiveArrangementStateIndex,
     currentSelectedArrangementSlot,

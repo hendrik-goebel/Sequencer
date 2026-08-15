@@ -12,6 +12,7 @@ const props = defineProps<{
   channel: any
   log: string[]
   storedStates: (StoredArpeggiatorState | null)[]
+  storedStateDirty?: boolean[]
   activeStoredStateIndex: number | null
   activeArrangementStoredStateIndex: number | null
   arrangementRows: (number | null)[][]
@@ -221,6 +222,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           :class="{
             active: index === displayedStoredStateIndex,
             selected: !followArrangementView && index === activeStoredStateIndex,
+            dirty: storedStateDirty?.[index] ?? false,
             empty: !editorLibraryStates[index]
           }"
           :draggable="Boolean(editorLibraryStates[index])"
@@ -422,6 +424,12 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .stored-state-button.selected {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px rgba(216, 182, 108, .35), 0 0 10px rgba(216, 182, 108, .28);
+}
+.stored-state-button.dirty {
+  border-color: var(--coral);
+  background: rgba(122, 52, 55, .65);
+  color: var(--coral-soft);
+  box-shadow: 0 0 0 2px rgba(214, 93, 100, .25), 0 0 10px rgba(214, 93, 100, .2);
 }
 .section-label { display: flex; justify-content: space-between; margin: 0 0 .6rem; }
 .section-label span { color: #52636f; font-size: .55rem; }
