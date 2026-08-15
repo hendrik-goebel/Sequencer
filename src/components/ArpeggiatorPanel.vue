@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS, STORED_STATE_COUNT } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -61,6 +61,8 @@ const displayedStoredStateIndex = computed(() =>
     ? (props.activeArrangementStoredStateIndex ?? props.activeStoredStateIndex)
     : props.activeStoredStateIndex
 )
+
+const editorLibraryStates = computed(() => props.storedStates.slice(0, STORED_STATE_COUNT))
 
 const visualChannel = computed(() => {
   if (!props.channel) return props.channel
@@ -186,17 +188,17 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       <button class="global-button" :class="{ active: globalActions }" :aria-pressed="globalActions" @click="$emit('toggle-global-actions')">global</button>
       <div class="stored-states">
         <button
-          v-for="(_, index) in storedStates"
+          v-for="(_, index) in editorLibraryStates"
           :key="index"
           class="stored-state-button"
           :class="{
             active: index === displayedStoredStateIndex,
             selected: !followArrangementView && index === activeStoredStateIndex,
-            empty: !storedStates[index]
+            empty: !editorLibraryStates[index]
           }"
-          :draggable="Boolean(storedStates[index])"
-          :aria-label="`${storedStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
-          @dragstart="storedStates[index] && startStoredStateDrag(index, $event)"
+          :draggable="Boolean(editorLibraryStates[index])"
+          :aria-label="`${editorLibraryStates[index] ? 'Apply' : 'Select'} stored state ${index + 1}`"
+          @dragstart="editorLibraryStates[index] && startStoredStateDrag(index, $event)"
           @click="$emit('apply-stored-state', index)"
           @dblclick="$emit('clear-stored-state', index)"
         >{{ index + 1 }}</button>

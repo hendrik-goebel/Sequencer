@@ -58,7 +58,7 @@ export function useChannels() {
   const storedStates = ref<(StoredArpeggiatorState | null)[][]>(
     channels.map(() => Array.from({ length: STORED_STATE_COUNT }, () => null))
   )
-  const currentStoredStates = computed(() => storedStates.value[currentIndex.value].slice(0, STORED_STATE_COUNT))
+  const currentStoredStates = computed(() => storedStates.value[currentIndex.value])
   const activeStoredStateIndexes = ref<(number | null)[]>(channels.map(() => 0))
   const currentActiveStoredStateIndex = computed(() => activeStoredStateIndexes.value[currentIndex.value])
   const activeArrangementStateIndexes = ref<(number | null)[]>(channels.map(() => null))
