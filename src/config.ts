@@ -8,7 +8,7 @@ export function noteLengthToMilliseconds(denominator: number, bpm: number) {
 }
 export const DEFAULT_QUANT = 4
 export const CHANNEL_COUNT = 8
-export const STORED_STATE_COUNT = 8
+export const STORED_STATE_COUNT = 16
 export const ARRANGEMENT_SLOT_COUNT = 16
 export const ARRANGEMENT_ROW_COUNT = 4
 export const STEP_COUNT = 16

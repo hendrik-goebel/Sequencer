@@ -1190,7 +1190,7 @@ export function useChannels() {
       typeof value.muted === 'boolean' &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode)) &&
       (!('followArrangementView' in value) || typeof value.followArrangementView === 'boolean') &&
-      (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && (value.arrangementSlots.length === STORED_STATE_COUNT || value.arrangementSlots.length === ARRANGEMENT_SLOT_COUNT) && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
+      (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && ([8, STORED_STATE_COUNT, ARRANGEMENT_SLOT_COUNT].includes(value.arrangementSlots.length)) && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
       (!('arrangementRows' in value) || (Array.isArray(value.arrangementRows) && value.arrangementRows.length >= 1 && value.arrangementRows.length <= ARRANGEMENT_ROW_COUNT && value.arrangementRows.every(row => Array.isArray(row) && row.length === ARRANGEMENT_SLOT_COUNT && row.every(slot => slot === null || isValidStoredStateIndex(slot))))) &&
       (!('arrangementRowIndex' in value) || value.arrangementRowIndex === null || (typeof value.arrangementRowIndex === 'number' && Number.isInteger(value.arrangementRowIndex) && value.arrangementRowIndex >= 0 && value.arrangementRowIndex < ARRANGEMENT_ROW_COUNT)) &&
       (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < ARRANGEMENT_SLOT_COUNT))
@@ -1209,7 +1209,7 @@ export function useChannels() {
           !Array.isArray(value.channels) || value.channels.length !== channels.length ||
           !value.channels.every(isSeedChannel) ||
           !Array.isArray(value.storedStates) || value.storedStates.length !== channels.length ||
-          !value.storedStates.every(states => Array.isArray(states) && states.length >= STORED_STATE_COUNT && states.every(state => state === null || isStoredState(state))) ||
+          !value.storedStates.every(states => Array.isArray(states) && states.length > 0 && states.every(state => state === null || isStoredState(state))) ||
           !Array.isArray(value.activeStoredStateIndexes) || value.activeStoredStateIndexes.length !== channels.length ||
           !value.activeStoredStateIndexes.every(index => index === null || (typeof index === 'number' && Number.isInteger(index) && index >= 0)) ||
           value.currentIndex < 0 || value.currentIndex >= channels.length) {
@@ -1258,7 +1258,12 @@ export function useChannels() {
 
     setGlobalBpm(seed.globalBpm)
     updateGlobalKey(seed.globalKey)
-    storedStates.value = seed.storedStates.map(states => states.map(cloneStoredState))
+    storedStates.value = seed.storedStates.map(states => {
+      const normalizedStates = states.map(cloneStoredState)
+      while (normalizedStates.length < STORED_STATE_COUNT) normalizedStates.push(null)
+      return normalizedStates
+    })
+    storedStateDirty.value = storedStates.value.map(states => Array.from({ length: states.length }, () => false))
     activeStoredStateIndexes.value = seed.activeStoredStateIndexes.slice()
     seed.channels.forEach((state, index) => {
       const channel = channels[index]
@@ -1324,6 +1329,12 @@ export function useChannels() {
     storedStates.value[channelIndex][toIndex] = cloneStoredState(sourceState)
     storedStateDirty.value[channelIndex][toIndex] = false
     activeStoredStateIndexes.value[channelIndex] = toIndex
+  }
+
+  function addStoredStateRow(channelIndex: number) {
+    if (!channels[channelIndex]) return
+    storedStates.value[channelIndex].push(...Array.from({ length: STORED_STATE_COUNT }, () => null))
+    storedStateDirty.value[channelIndex].push(...Array.from({ length: STORED_STATE_COUNT }, () => false))
   }
 
   function storeAllStates() {
@@ -1534,6 +1545,7 @@ export function useChannels() {
     applyStoredState,
     clearStoredState,
     copyStoredState,
+    addStoredStateRow,
     storeAllStates,
     applyAllStoredStates,
     clearAllStoredStates,

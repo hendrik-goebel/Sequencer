@@ -49,6 +49,7 @@
       @arrangement-clear-slot="handleArrangementClearSlot"
       @move-arrangement-slot-to-state="handleMoveArrangementSlotToState"
       @copy-stored-state="handleCopyStoredState"
+      @add-stored-state-row="handleAddStoredStateRow"
       @select-arrangement-row="handleSelectArrangementRow"
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
@@ -150,6 +151,7 @@ const {
   clearArrangementSlot,
   moveArrangementSlotToStoredState,
   copyStoredState,
+  addStoredStateRow,
   setArrangementRow,
   selectArrangementSlot,
   addArrangementRow,
@@ -223,6 +225,11 @@ function handleMoveArrangementSlotToState(payload: { rowIndex: number, slotIndex
 function handleCopyStoredState(payload: { fromIndex: number, toIndex: number }) {
   if (globalActions.value) channels.forEach((_, index) => copyStoredState(index, payload.fromIndex, payload.toIndex))
   else copyStoredState(currentIndex.value, payload.fromIndex, payload.toIndex)
+}
+
+function handleAddStoredStateRow() {
+  if (globalActions.value) channels.forEach((_, index) => addStoredStateRow(index))
+  else addStoredStateRow(currentIndex.value)
 }
 
 function handleSelectArrangementRow(rowIndex: number) {
