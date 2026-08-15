@@ -15,6 +15,7 @@ interface SeedChannelState extends StoredArpeggiatorState {
   muted: boolean
   playbackMode?: PlaybackMode
   followArrangementView?: boolean
+  arrangementReferenceMode?: boolean
   arrangementSlots?: (number | null)[]
   arrangementRows?: (number | null)[][]
   arrangementRowIndex?: number | null
@@ -38,7 +39,7 @@ export function useChannels() {
   function createArrangementSlots(source?: (number | null)[]) {
     return Array.from({ length: ARRANGEMENT_SLOT_COUNT }, (_, index) => {
       const value = source?.[index]
-      return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < STORED_STATE_COUNT ? value : null
+      return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null
     })
   }
   function createArrangementRows(source?: (number | null)[][], legacySlots?: (number | null)[]) {
@@ -57,7 +58,7 @@ export function useChannels() {
   const storedStates = ref<(StoredArpeggiatorState | null)[][]>(
     channels.map(() => Array.from({ length: STORED_STATE_COUNT }, () => null))
   )
-  const currentStoredStates = computed(() => storedStates.value[currentIndex.value])
+  const currentStoredStates = computed(() => storedStates.value[currentIndex.value].slice(0, STORED_STATE_COUNT))
   const activeStoredStateIndexes = ref<(number | null)[]>(channels.map(() => 0))
   const currentActiveStoredStateIndex = computed(() => activeStoredStateIndexes.value[currentIndex.value])
   const activeArrangementStateIndexes = ref<(number | null)[]>(channels.map(() => null))
@@ -82,7 +83,7 @@ export function useChannels() {
   })
 
   function isValidStoredStateIndex(value: unknown): value is number {
-    return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < STORED_STATE_COUNT
+    return typeof value === 'number' && Number.isInteger(value) && value >= 0
   }
 
   function isPlaybackMode(value: unknown): value is PlaybackMode {
@@ -376,6 +377,15 @@ export function useChannels() {
 
   function toggleMicrotones() {
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.microtonesEnabled = !arrangementState.microtonesEnabled
+      if (!arrangementState.microtonesEnabled) {
+        arrangementState.additionalNotes = arrangementState.additionalNotes?.filter(note => Number.isInteger(note))
+        arrangementState.excludedNotes = arrangementState.excludedNotes?.filter(note => Number.isInteger(note))
+      }
+      return
+    }
     channel.microtonesEnabled = !channel.microtonesEnabled
     if (!channel.microtonesEnabled) {
       channel.additionalNotes = channel.additionalNotes.filter(note => Number.isInteger(note))
@@ -416,6 +426,11 @@ export function useChannels() {
     channel.playbackMode = 'arrangement'
     channel.followArrangementView = true
     if (channel.playing) primeArrangement(channel)
+  }
+
+  function toggleArrangementReferenceMode(index: number) {
+    const channel = channels[index]
+    if (channel) channel.arrangementReferenceMode = !channel.arrangementReferenceMode
   }
 
   function setArrangementRow(channelIndex: number, rowIndex: number) {
@@ -605,6 +620,14 @@ export function useChannels() {
 
   function updateVelocity(payload: { index: number, value: number }) {
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      if (!Number.isInteger(payload.index) || payload.index < 0 || payload.index >= arrangementState.loopLength) return
+      const velocities = arrangementState.velocities?.slice() ?? Array.from({ length: arrangementState.loopLength }, () => MIDI.VELOCITY_MAX)
+      velocities[payload.index] = Math.max(0, Math.min(127, Math.round(payload.value)))
+      arrangementState.velocities = velocities
+      return
+    }
     if (!Number.isInteger(payload.index) || payload.index < 0 || payload.index >= channel.loopLength) return
     channel.velocities[payload.index] = Math.max(0, Math.min(127, Math.round(payload.value)))
     channel.arpeggiator.setVelocities(channel.velocities)
@@ -613,6 +636,12 @@ export function useChannels() {
 
   function clearNotes(){
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.notes = []
+      arrangementState.steps = Array.from({ length: STEP_COUNT }, () => -1)
+      return
+    }
     channel.notes = []
     channel.steps = Array.from({ length: STEP_COUNT }, () => -1)
     channel.arpeggiator.setNotes(channel.notes)
@@ -797,6 +826,11 @@ export function useChannels() {
   }
   function updatePattern(pattern:any){
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.pattern = pattern
+      return
+    }
     channel.arpeggiator.setPattern(pattern)
     channel.pattern = pattern
     persistArrangementSlotState(channel)
@@ -809,18 +843,40 @@ export function useChannels() {
   }
   function updateNoteLength(length:number){
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.noteLength = length
+      return
+    }
     channel.arpeggiator.setNoteLength(length)
     channel.noteLength = length
     persistArrangementSlotState(channel)
   }
   function updateArpeggioLength(length:number){
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.arpeggioLength = Math.max(1, Math.min(32, Math.floor(length)))
+      return
+    }
     channel.arpeggioLength = Math.max(1, Math.min(32, Math.floor(length)))
     persistArrangementSlotState(channel)
   }
   function updateLoopLength(length:number){
     const channel = currentChannel.value
     const newLen = Math.max(1, Math.min(MAX_LOOP_LENGTH, Math.floor(length)))
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.steps = arrangementState.steps.length < newLen
+        ? arrangementState.steps.concat(Array.from({ length: newLen - arrangementState.steps.length }, () => -1))
+        : arrangementState.steps.slice(0, newLen)
+      const velocities = arrangementState.velocities ?? []
+      arrangementState.velocities = velocities.length < newLen
+        ? velocities.concat(Array.from({ length: newLen - velocities.length }, () => MIDI.VELOCITY_MAX))
+        : velocities.slice(0, newLen)
+      arrangementState.loopLength = newLen
+      return
+    }
     if (!channel.steps) channel.steps = []
     if (channel.steps.length < newLen) {
       const addedSteps = Array.from({ length: newLen - channel.steps.length }, () => -1)
@@ -846,6 +902,11 @@ export function useChannels() {
   function updateQuantisation(q:number){
     const channel = currentChannel.value
     const newQ = Math.max(1, Math.min(64, Math.floor(q)))
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.quantisation = newQ
+      return
+    }
     channel.quantisation = newQ
     if (typeof channel.arpeggiator.setSubdivision === 'function') channel.arpeggiator.setSubdivision(newQ)
     persistArrangementSlotState(channel)
@@ -1023,6 +1084,7 @@ export function useChannels() {
       midiChannel: channel.midiChannel,
       muted: channel.muted,
       followArrangementView: channel.followArrangementView,
+      arrangementReferenceMode: channel.arrangementReferenceMode,
       arrangementRows: channel.arrangementRows.map(row => row.slice()),
       arrangementRowIndex: channel.arrangementRowIndex,
       arrangementIndex: channel.arrangementIndex
@@ -1102,9 +1164,9 @@ export function useChannels() {
           !Array.isArray(value.channels) || value.channels.length !== channels.length ||
           !value.channels.every(isSeedChannel) ||
           !Array.isArray(value.storedStates) || value.storedStates.length !== channels.length ||
-          !value.storedStates.every(states => Array.isArray(states) && states.length === STORED_STATE_COUNT && states.every(state => state === null || isStoredState(state))) ||
+          !value.storedStates.every(states => Array.isArray(states) && states.length >= STORED_STATE_COUNT && states.every(state => state === null || isStoredState(state))) ||
           !Array.isArray(value.activeStoredStateIndexes) || value.activeStoredStateIndexes.length !== channels.length ||
-          !value.activeStoredStateIndexes.every(index => index === null || (typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < STORED_STATE_COUNT)) ||
+          !value.activeStoredStateIndexes.every(index => index === null || (typeof index === 'number' && Number.isInteger(index) && index >= 0)) ||
           value.currentIndex < 0 || value.currentIndex >= channels.length) {
         return null
       }
@@ -1159,6 +1221,7 @@ export function useChannels() {
       channel.muted = state.muted
       channel.playbackMode = state.playbackMode ?? 'state'
       channel.followArrangementView = state.followArrangementView ?? false
+      channel.arrangementReferenceMode = state.arrangementReferenceMode ?? true
       channel.arrangementRows = createArrangementRows(state.arrangementRows, state.arrangementSlots)
       channel.arrangementRowIndex = typeof state.arrangementRowIndex === 'number'
         ? Math.max(0, Math.min(ARRANGEMENT_ROW_COUNT - 1, Math.floor(state.arrangementRowIndex)))
@@ -1255,6 +1318,7 @@ export function useChannels() {
     target.microtonesEnabled = source.microtonesEnabled
     target.playbackMode = source.playbackMode
     target.followArrangementView = source.followArrangementView
+    target.arrangementReferenceMode = source.arrangementReferenceMode
     target.arrangementRows = source.arrangementRows.map(row => row.slice())
     target.arrangementRowIndex = source.arrangementRowIndex
     target.arrangementIndex = source.arrangementIndex
@@ -1282,7 +1346,11 @@ export function useChannels() {
     if (!channel || rowIndex < 0 || rowIndex >= channel.arrangementRows.length || slotIndex < 0 || slotIndex >= channel.arrangementRows[rowIndex].length) return
     if (sourceStateIndex !== null && !isValidStoredStateIndex(sourceStateIndex)) return
 
-    channel.arrangementRows[rowIndex][slotIndex] = sourceStateIndex
+    const sourceState = sourceStateIndex === null ? null : storedStates.value[channelIndex][sourceStateIndex]
+    if (sourceStateIndex !== null && !sourceState) return
+    channel.arrangementRows[rowIndex][slotIndex] = sourceStateIndex === null || channel.arrangementReferenceMode
+      ? sourceStateIndex
+      : storedStates.value[channelIndex].push(cloneStoredState(sourceState)!) - 1
     normalizeArrangement(channel)
   }
 
@@ -1403,6 +1471,7 @@ export function useChannels() {
     selectArrangementSlot,
     setPlaybackMode,
     toggleArrangementPlayback,
+    toggleArrangementReferenceMode,
     toggleFollowArrangementView,
     setFollowArrangementView,
     createSeed,

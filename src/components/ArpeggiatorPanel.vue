@@ -15,6 +15,7 @@ const props = defineProps<{
   activeStoredStateIndex: number | null
   activeArrangementStoredStateIndex: number | null
   arrangementRows: (number | null)[][]
+  arrangementReferenceMode: boolean
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
   selectedArrangementRowIndex: number | null
@@ -26,6 +27,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
   (event: 'toggle-arrangement-playback'): void
+  (event: 'toggle-arrangement-reference-mode'): void
   (event: 'select-arrangement-row', rowIndex: number): void
   (event: 'select-arrangement-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'toggle-global-actions'): void
@@ -207,6 +209,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       :selected-arrangement-row-index="selectedArrangementRowIndex"
       :selected-arrangement-slot-index="selectedArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
+      :reference-mode="arrangementReferenceMode"
       :follow-arrangement-view="followArrangementView"
       :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
@@ -216,6 +219,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       @select-slot="$emit('select-arrangement-slot', $event)"
       @add-row="$emit('add-arrangement-row')"
       @toggle-playback-mode="$emit('toggle-arrangement-playback')"
+      @toggle-reference-mode="$emit('toggle-arrangement-reference-mode')"
     />
   </section>
 </template>

@@ -20,7 +20,7 @@ export interface Channel {
   excludedNotes: number[]
   reduceNotes: boolean
   steps: StepValue[]
-  velocities?: number[]
+  velocities: number[]
   base: number
   octave: number
   selectedOctaves: number[]
@@ -32,6 +32,7 @@ export interface Channel {
   microtonesEnabled: boolean
   playbackMode: PlaybackMode
   followArrangementView: boolean
+  arrangementReferenceMode: boolean
   arrangementRows: ArrangementSlot[][]
   arrangementRowIndex: number | null
   arrangementIndex: number | null
@@ -50,6 +51,7 @@ export interface StoredArpeggiatorState {
   notes: number[]
   additionalNotes?: number[]
   excludedNotes?: number[]
+  velocities?: number[]
   steps: StepValue[]
   base: number
   octave: number
@@ -90,6 +92,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     microtonesEnabled: false,
     playbackMode: 'state' as PlaybackMode,
     followArrangementView: false,
+    arrangementReferenceMode: true,
     arrangementRows: Array.from({ length: 1 }, () =>
       Array.from({ length: ARRANGEMENT_SLOT_COUNT }, () => null)
     ) as ArrangementSlot[][],

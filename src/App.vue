@@ -33,6 +33,7 @@
       :active-arrangement-stored-state-index="currentActiveArrangementStateIndex"
       :follow-arrangement-view="currentChannel.followArrangementView"
       :arrangement-rows="currentChannel.arrangementRows"
+      :arrangement-reference-mode="currentChannel.arrangementReferenceMode"
       :active-arrangement-row-index="currentChannel.arrangementRowIndex"
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       :selected-arrangement-row-index="currentSelectedArrangementSlot.rowIndex"
@@ -49,6 +50,7 @@
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
       @toggle-arrangement-playback="handleToggleArrangementPlayback"
+      @toggle-arrangement-reference-mode="handleToggleArrangementReferenceMode"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
 
@@ -146,6 +148,7 @@ const {
   selectArrangementSlot,
   addArrangementRow,
   toggleArrangementPlayback,
+  toggleArrangementReferenceMode,
   toggleFollowArrangementView,
   setFollowArrangementView,
   createSeed,
@@ -221,6 +224,11 @@ function handleAddArrangementRow() {
 function handleToggleArrangementPlayback() {
   if (globalActions.value) channels.forEach((_, index) => toggleArrangementPlayback(index))
   else toggleArrangementPlayback(currentIndex.value)
+}
+
+function handleToggleArrangementReferenceMode() {
+  if (globalActions.value) channels.forEach((_, index) => toggleArrangementReferenceMode(index))
+  else toggleArrangementReferenceMode(currentIndex.value)
 }
 
 function handleToggleFollowArrangementView() {
