@@ -52,6 +52,7 @@ const emit = defineEmits<{
   (event: 'arrangement-move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'arrangement-clear-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'move-arrangement-slot-to-state', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
+  (event: 'copy-stored-state', payload: { fromIndex: number, toIndex: number }): void
   (event: 'add-arrangement-row'): void
 }>()
 
@@ -130,20 +131,29 @@ function startStoredStateDrag(index: number, event: DragEvent) {
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
 }
 
-function getArrangementSlotDragPayload(event: DragEvent) {
+function getDragPayload(event: DragEvent) {
   const value = event.dataTransfer?.getData(ARRANGEMENT_DRAG_TYPE) || event.dataTransfer?.getData('text/plain')
-  const [kind, rowIndex, slotIndex] = value?.split(':') ?? []
-  if (kind !== 'arrangement-slot') return null
-  const row = Number(rowIndex)
-  const slot = Number(slotIndex)
-  return Number.isInteger(row) && row >= 0 && Number.isInteger(slot) && slot >= 0
-    ? { rowIndex: row, slotIndex: slot }
-    : null
+  const [kind, firstValue, secondValue] = value?.split(':') ?? []
+  if (kind === 'stored-state') {
+    const index = Number(firstValue)
+    return Number.isInteger(index) && index >= 0 ? { kind, index } : null
+  }
+  if (kind === 'arrangement-slot') {
+    const rowIndex = Number(firstValue)
+    const slotIndex = Number(secondValue)
+    return Number.isInteger(rowIndex) && rowIndex >= 0 && Number.isInteger(slotIndex) && slotIndex >= 0
+      ? { kind, rowIndex, slotIndex }
+      : null
+  }
+  return null
 }
 
 function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) {
-  const payload = getArrangementSlotDragPayload(event)
-  if (payload) emit('move-arrangement-slot-to-state', { ...payload, stateIndex })
+  const payload = getDragPayload(event)
+  if (payload?.kind === 'arrangement-slot') emit('move-arrangement-slot-to-state', { ...payload, stateIndex })
+  else if (payload?.kind === 'stored-state' && payload.index !== stateIndex) {
+    emit('copy-stored-state', { fromIndex: payload.index, toIndex: stateIndex })
+  }
 }
 </script>
 

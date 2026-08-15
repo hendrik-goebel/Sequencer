@@ -1269,6 +1269,14 @@ export function useChannels() {
     }
   }
 
+  function copyStoredState(channelIndex: number, fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || !isValidStoredStateIndex(fromIndex) || !isValidStoredStateIndex(toIndex)) return
+    const sourceState = storedStates.value[channelIndex]?.[fromIndex]
+    if (!sourceState) return
+    storedStates.value[channelIndex][toIndex] = cloneStoredState(sourceState)
+    activeStoredStateIndexes.value[channelIndex] = toIndex
+  }
+
   function storeAllStates() {
     channels.forEach((channel, channelIndex) => {
       const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
@@ -1475,6 +1483,7 @@ export function useChannels() {
     storeCurrentState,
     applyStoredState,
     clearStoredState,
+    copyStoredState,
     storeAllStates,
     applyAllStoredStates,
     clearAllStoredStates,
