@@ -45,6 +45,7 @@
       @arrangement-clear-slot="handleArrangementClearSlot"
       @select-arrangement-row="handleSelectArrangementRow"
       @add-arrangement-row="handleAddArrangementRow"
+      @toggle-arrangement-playback="handleToggleArrangementPlayback"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
 
@@ -139,6 +140,7 @@ const {
   clearArrangementSlot,
   setArrangementRow,
   addArrangementRow,
+  toggleArrangementPlayback,
   toggleFollowArrangementView,
   setFollowArrangementView,
   createSeed,
@@ -204,6 +206,11 @@ function handleSelectArrangementRow(rowIndex: number) {
 function handleAddArrangementRow() {
   if (globalActions.value) channels.forEach((_, index) => addArrangementRow(index))
   else addArrangementRow(currentIndex.value)
+}
+
+function handleToggleArrangementPlayback() {
+  if (globalActions.value) channels.forEach((_, index) => toggleArrangementPlayback(index))
+  else toggleArrangementPlayback(currentIndex.value)
 }
 
 function handleToggleFollowArrangementView() {

@@ -6,6 +6,13 @@
       </div>
       <button
         type="button"
+        class="arrangement-toggle"
+        :class="{ active: playbackMode === 'arrangement' }"
+        :aria-pressed="playbackMode === 'arrangement'"
+        @click="$emit('toggle-playback-mode')"
+      >Play arrangement</button>
+      <button
+        type="button"
         class="add-row-button"
         :disabled="arrangementRows.length >= maxRows"
         @click="$emit('add-row')"
@@ -60,6 +67,7 @@ const emit = defineEmits<{
   (event: 'clear-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'select-row', rowIndex: number): void
   (event: 'add-row'): void
+  (event: 'toggle-playback-mode'): void
 }>()
 
 type DragPayload = { kind: 'stored-state' | 'arrangement-slot', rowIndex?: number, index: number }
@@ -151,6 +159,25 @@ function clearSlot(rowIndex: number, slotIndex: number) {
   font-weight: 800;
   letter-spacing: .06em;
   cursor: pointer;
+}
+
+.arrangement-toggle {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: .35rem .6rem;
+  background: #1c2a33;
+  color: var(--text-muted);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+
+.arrangement-toggle.active {
+  border-color: var(--teal);
+  background: var(--teal-deep);
+  color: var(--teal-soft);
+  box-shadow: 0 0 10px rgba(104, 216, 195, .22);
 }
 
 .add-row-button:disabled {

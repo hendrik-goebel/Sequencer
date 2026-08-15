@@ -370,14 +370,30 @@ export function useChannels() {
     }
   }
 
+  function toggleArrangementPlayback(index: number) {
+    const channel = channels[index]
+    if (!channel) return
+
+    if (channel.playbackMode === 'arrangement') {
+      channel.playbackMode = 'state'
+      channel.followArrangementView = false
+      activeArrangementStateIndexes.value[index] = null
+
+      const selectedState = storedStates.value[index][activeStoredStateIndexes.value[index] ?? -1]
+      if (selectedState) applyChannelState(channel, selectedState, { applyPlaybackMode: false })
+      return
+    }
+
+    channel.playbackMode = 'arrangement'
+    channel.followArrangementView = true
+    if (channel.playing) primeArrangement(channel)
+  }
+
   function setArrangementRow(channelIndex: number, rowIndex: number) {
     const channel = channels[channelIndex]
     if (!channel || rowIndex < 0 || rowIndex >= channel.arrangementRows.length) return
     channel.arrangementRowIndex = rowIndex
-    channel.playbackMode = 'arrangement'
-    channel.followArrangementView = true
-    if (channel.playing) primeArrangement(channel)
-    else toggleChannelPlay(channelIndex)
+    if (channel.playbackMode === 'arrangement' && channel.playing) primeArrangement(channel)
   }
 
   function toggleFollowArrangementView(index: number) {
@@ -1287,6 +1303,7 @@ export function useChannels() {
     addArrangementRow,
     setArrangementRow,
     setPlaybackMode,
+    toggleArrangementPlayback,
     toggleFollowArrangementView,
     setFollowArrangementView,
     createSeed,

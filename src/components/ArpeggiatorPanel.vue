@@ -23,6 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
+  (event: 'toggle-arrangement-playback'): void
   (event: 'select-arrangement-row', rowIndex: number): void
   (event: 'toggle-global-actions'): void
   (event: 'toggle-tone-material', note: number): void
@@ -206,6 +207,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       @clear-slot="$emit('arrangement-clear-slot', $event)"
       @select-row="$emit('select-arrangement-row', $event)"
       @add-row="$emit('add-arrangement-row')"
+      @toggle-playback-mode="$emit('toggle-arrangement-playback')"
     />
   </section>
 </template>
