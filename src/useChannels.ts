@@ -681,12 +681,21 @@ export function useChannels() {
   }
 
   function createVariation(index: number) {
-    const channel = channels[index]
+    const liveChannel = channels[index]
+    const arrangementState = index === currentIndex.value ? getEditableArrangementState(liveChannel) : null
+    const channel = arrangementState
+      ? { ...liveChannel, ...cloneStoredState(arrangementState)! }
+      : liveChannel
     const octaveBase = 12 * (channel.octave + 1)
     const toneMaterials = getToneMaterials(channel, channel.selectedOctaves)
     if (!toneMaterials.length) {
       channel.notes = []
       channel.steps = Array.from({ length: channel.loopLength }, () => -1)
+      if (arrangementState) {
+        arrangementState.notes = channel.notes
+        arrangementState.steps = channel.steps
+        return
+      }
       channel.arpeggiator.setNotes(channel.notes)
       channel.arpeggiator.setSteps(channel.steps)
       persistArrangementSlotState(channel)
@@ -765,6 +774,12 @@ export function useChannels() {
     channel.steps = variedSteps
     const chordNotes = variedSteps.flatMap(step => stepNotes(step))
     channel.notes = [...new Set([...channel.notes, ...chordNotes])].sort((a, b) => a - b)
+    if (arrangementState) {
+      arrangementState.base = channel.base
+      arrangementState.notes = channel.notes
+      arrangementState.steps = channel.steps
+      return
+    }
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
     persistArrangementSlotState(channel)
