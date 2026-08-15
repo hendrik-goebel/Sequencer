@@ -25,6 +25,7 @@ const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
   (event: 'toggle-arrangement-playback'): void
   (event: 'select-arrangement-row', rowIndex: number): void
+  (event: 'select-arrangement-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'toggle-global-actions'): void
   (event: 'toggle-tone-material', note: number): void
   (event: 'cycle-step', payload: any): void
@@ -206,6 +207,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       @move-slot="$emit('arrangement-move-slot', $event)"
       @clear-slot="$emit('arrangement-clear-slot', $event)"
       @select-row="$emit('select-arrangement-row', $event)"
+      @select-slot="$emit('select-arrangement-slot', $event)"
       @add-row="$emit('add-arrangement-row')"
       @toggle-playback-mode="$emit('toggle-arrangement-playback')"
     />

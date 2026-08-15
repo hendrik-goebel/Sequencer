@@ -39,6 +39,7 @@
             @dragstart="slot !== null && startSlotDrag(rowIndex, slotIndex, $event)"
             @dragover.prevent
             @drop.prevent="handleDrop(rowIndex, slotIndex, $event)"
+            @click="slot !== null && $emit('select-slot', { rowIndex, slotIndex })"
             @dblclick="slot !== null && clearSlot(rowIndex, slotIndex)"
             :aria-label="slot === null ? `Empty arrangement row ${rowIndex + 1} slot ${slotIndex + 1}` : `Row ${rowIndex + 1}, slot ${slotIndex + 1}, state ${slot + 1}`"
           >
@@ -66,6 +67,7 @@ const emit = defineEmits<{
   (event: 'move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'clear-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'select-row', rowIndex: number): void
+  (event: 'select-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'add-row'): void
   (event: 'toggle-playback-mode'): void
 }>()

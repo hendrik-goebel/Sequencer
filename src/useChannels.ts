@@ -296,6 +296,7 @@ export function useChannels() {
     } else {
       channel.additionalNotes = [...new Set([...channel.additionalNotes, ...octaveNotes])].sort((a, b) => a - b)
     }
+    persistArrangementSlotState(channel)
   }
 
   function shiftCurrentToneMaterial(direction: 1 | -1) {
@@ -355,10 +356,13 @@ export function useChannels() {
       channel.additionalNotes = channel.additionalNotes.filter(note => Number.isInteger(note))
       channel.excludedNotes = channel.excludedNotes.filter(note => Number.isInteger(note))
     }
+    persistArrangementSlotState(channel)
   }
 
   function toggleReduceNotes() {
-    currentChannel.value.reduceNotes = !currentChannel.value.reduceNotes
+    const channel = currentChannel.value
+    channel.reduceNotes = !channel.reduceNotes
+    persistArrangementSlotState(channel)
   }
 
   function setPlaybackMode(index: number, mode: PlaybackMode) {
@@ -396,6 +400,32 @@ export function useChannels() {
     if (channel.playbackMode === 'arrangement' && channel.playing) primeArrangement(channel)
   }
 
+  function selectArrangementSlot(channelIndex: number, rowIndex: number, slotIndex: number) {
+    const channel = channels[channelIndex]
+    const storedStateIndex = channel?.arrangementRows[rowIndex]?.[slotIndex]
+    if (!channel || !isValidStoredStateIndex(storedStateIndex)) return
+
+    const state = storedStates.value[channelIndex][storedStateIndex]
+    if (!state) return
+
+    channel.arrangementRowIndex = rowIndex
+    channel.arrangementIndex = slotIndex
+    activeArrangementStateIndexes.value[channelIndex] = storedStateIndex
+    activeStoredStateIndexes.value[channelIndex] = storedStateIndex
+    channel.followArrangementView = false
+    applyChannelState(channel, state, { applyPlaybackMode: false })
+  }
+
+  function persistArrangementSlotState(channel: Channel) {
+    const rowIndex = channel.arrangementRowIndex
+    const slotIndex = channel.arrangementIndex
+    if (rowIndex === null || slotIndex === null) return
+
+    const storedStateIndex = channel.arrangementRows[rowIndex]?.[slotIndex]
+    if (!isValidStoredStateIndex(storedStateIndex)) return
+    storedStates.value[channel.id][storedStateIndex] = snapshotChannelState(channel)
+  }
+
   function toggleFollowArrangementView(index: number) {
     const channel = channels[index]
     if (!channel || channel.playbackMode !== 'arrangement') return
@@ -415,7 +445,12 @@ export function useChannels() {
       // legacy: toggle through available notes by rotating index into channel.notes
       const stepIndex = payload
       const noteCount = channel.notes.length
-      if (noteCount === 0) { channel.steps[stepIndex] = -1; channel.arpeggiator.setSteps(channel.steps); return }
+      if (noteCount === 0) {
+        channel.steps[stepIndex] = -1
+        channel.arpeggiator.setSteps(channel.steps)
+        persistArrangementSlotState(channel)
+        return
+      }
       const current = channel.steps[stepIndex]
       // if current is a MIDI note, find its index among channel.notes
       let idx = typeof current === 'number' ? channel.notes.indexOf(current) : -1
@@ -428,6 +463,7 @@ export function useChannels() {
       }
 
       channel.arpeggiator.setSteps(channel.steps)
+      persistArrangementSlotState(channel)
       return
     }
 
@@ -485,6 +521,7 @@ export function useChannels() {
     channel.steps = newSteps
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+    persistArrangementSlotState(channel)
   }
 
   function updateEditorOctaves(octaves: number[]) {
@@ -498,6 +535,7 @@ export function useChannels() {
       addedOctaves.forEach(octave => copyToneMaterialsToOctave(currentChannel.value, previousOctaves, octave))
     }
     channelEditorOctaves(currentChannel.value, selectedOctaves)
+    persistArrangementSlotState(currentChannel.value)
   }
 
   function copyToneMaterialsToOctave(
@@ -531,6 +569,7 @@ export function useChannels() {
     if (!Number.isInteger(payload.index) || payload.index < 0 || payload.index >= channel.loopLength) return
     channel.velocities[payload.index] = Math.max(0, Math.min(127, Math.round(payload.value)))
     channel.arpeggiator.setVelocities(channel.velocities)
+    persistArrangementSlotState(channel)
   }
 
   function clearNotes(){
@@ -539,6 +578,7 @@ export function useChannels() {
     channel.steps = Array.from({ length: STEP_COUNT }, () => -1)
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+    persistArrangementSlotState(channel)
   }
 
   function variationChangeCount(maximum: number) {
@@ -556,6 +596,7 @@ export function useChannels() {
       channel.steps = Array.from({ length: channel.loopLength }, () => -1)
       channel.arpeggiator.setNotes(channel.notes)
       channel.arpeggiator.setSteps(channel.steps)
+      persistArrangementSlotState(channel)
       return
     }
     const length = Math.max(1, Math.min(32, Math.floor(channel.arpeggioLength)))
@@ -633,6 +674,7 @@ export function useChannels() {
     channel.notes = [...new Set([...channel.notes, ...chordNotes])].sort((a, b) => a - b)
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+    persistArrangementSlotState(channel)
   }
 
   function createGlobalVariation() {
@@ -714,16 +756,28 @@ export function useChannels() {
     const channel = channels[index]
     channel.midiChannel = Math.max(1, Math.min(16, Math.floor(midiChannel)))
   }
-  function updatePattern(pattern:any){ currentChannel.value.arpeggiator.setPattern(pattern); currentChannel.value.pattern = pattern }
+  function updatePattern(pattern:any){
+    const channel = currentChannel.value
+    channel.arpeggiator.setPattern(pattern)
+    channel.pattern = pattern
+    persistArrangementSlotState(channel)
+  }
   function updateChannelKey(index: number, key: string) {
     const channel = channels[index]
     if (!channel || (key !== NO_KEY && !KEYS.some(candidate => candidate.name === key))) return
     channel.key = key as CircleOfFifthsKey
     if (channel.key === NO_KEY) channel.additionalNotes = []
   }
-  function updateNoteLength(length:number){ currentChannel.value.arpeggiator.setNoteLength(length); currentChannel.value.noteLength = length }
+  function updateNoteLength(length:number){
+    const channel = currentChannel.value
+    channel.arpeggiator.setNoteLength(length)
+    channel.noteLength = length
+    persistArrangementSlotState(channel)
+  }
   function updateArpeggioLength(length:number){
-    currentChannel.value.arpeggioLength = Math.max(1, Math.min(32, Math.floor(length)))
+    const channel = currentChannel.value
+    channel.arpeggioLength = Math.max(1, Math.min(32, Math.floor(length)))
+    persistArrangementSlotState(channel)
   }
   function updateLoopLength(length:number){
     const channel = currentChannel.value
@@ -747,6 +801,7 @@ export function useChannels() {
       // ensure arpeggiator uses the resized steps array
       if (typeof channel.arpeggiator.setSteps === 'function') channel.arpeggiator.setSteps(channel.steps)
     }
+    persistArrangementSlotState(channel)
   }
 
   function updateQuantisation(q:number){
@@ -754,6 +809,7 @@ export function useChannels() {
     const newQ = Math.max(1, Math.min(64, Math.floor(q)))
     channel.quantisation = newQ
     if (typeof channel.arpeggiator.setSubdivision === 'function') channel.arpeggiator.setSubdivision(newQ)
+    persistArrangementSlotState(channel)
   }
 
   function updateArpeggioOctave(octave: number) {
@@ -783,6 +839,7 @@ export function useChannels() {
     channel.steps = channel.steps.map(transposeStep)
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+    persistArrangementSlotState(channel)
   }
 
   function shiftChannelNotes(channel: typeof channels[number], direction: 1 | -1) {
@@ -812,6 +869,7 @@ export function useChannels() {
     channel.steps = channel.steps.map(shiftStep)
     channel.arpeggiator.setNotes(channel.notes)
     channel.arpeggiator.setSteps(channel.steps)
+    persistArrangementSlotState(channel)
   }
 
   function shiftCurrentChannelNotes(direction: 1 | -1) {
@@ -1302,6 +1360,7 @@ export function useChannels() {
     setArrangementSlots,
     addArrangementRow,
     setArrangementRow,
+    selectArrangementSlot,
     setPlaybackMode,
     toggleArrangementPlayback,
     toggleFollowArrangementView,

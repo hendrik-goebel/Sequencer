@@ -44,6 +44,7 @@
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
       @select-arrangement-row="handleSelectArrangementRow"
+      @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
       @toggle-arrangement-playback="handleToggleArrangementPlayback"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
@@ -139,6 +140,7 @@ const {
   moveArrangementSlot,
   clearArrangementSlot,
   setArrangementRow,
+  selectArrangementSlot,
   addArrangementRow,
   toggleArrangementPlayback,
   toggleFollowArrangementView,
@@ -201,6 +203,11 @@ function handleArrangementClearSlot(payload: { rowIndex: number, slotIndex: numb
 function handleSelectArrangementRow(rowIndex: number) {
   if (globalActions.value) channels.forEach((_, index) => setArrangementRow(index, rowIndex))
   else setArrangementRow(currentIndex.value, rowIndex)
+}
+
+function handleSelectArrangementSlot(payload: { rowIndex: number, slotIndex: number }) {
+  if (globalActions.value) channels.forEach((_, index) => selectArrangementSlot(index, payload.rowIndex, payload.slotIndex))
+  else selectArrangementSlot(currentIndex.value, payload.rowIndex, payload.slotIndex)
 }
 
 function handleAddArrangementRow() {
