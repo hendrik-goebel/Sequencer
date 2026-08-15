@@ -37,7 +37,7 @@
             :class="{
               filled: slot !== null,
               active: activeArrangementRowIndex === rowIndex && activeArrangementSlotIndex === slotIndex && playbackMode === 'arrangement',
-              selected: selectedArrangementRowIndex === rowIndex && selectedArrangementSlotIndex === slotIndex
+              selected: !followArrangementView && selectedArrangementRowIndex === rowIndex && selectedArrangementSlotIndex === slotIndex
             }"
             :draggable="slot !== null"
             @dragstart="slot !== null && startSlotDrag(rowIndex, slotIndex, $event)"
@@ -65,6 +65,7 @@ const props = defineProps<{
   selectedArrangementRowIndex: number | null
   selectedArrangementSlotIndex: number | null
   playbackMode: 'state' | 'arrangement'
+  followArrangementView?: boolean
   maxRows: number
 }>()
 

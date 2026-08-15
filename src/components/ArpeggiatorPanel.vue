@@ -189,7 +189,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
           class="stored-state-button"
           :class="{
             active: index === displayedStoredStateIndex,
-            selected: index === activeStoredStateIndex,
+            selected: !followArrangementView && index === activeStoredStateIndex,
             empty: !storedStates[index]
           }"
           :draggable="Boolean(storedStates[index])"
@@ -207,6 +207,7 @@ function startStoredStateDrag(index: number, event: DragEvent) {
       :selected-arrangement-row-index="selectedArrangementRowIndex"
       :selected-arrangement-slot-index="selectedArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
+      :follow-arrangement-view="followArrangementView"
       :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
       @move-slot="$emit('arrangement-move-slot', $event)"
