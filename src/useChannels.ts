@@ -1300,6 +1300,14 @@ export function useChannels() {
     }
   }
 
+  function findNextCommonEmptyStoredState(storedStateIndex: number) {
+    const maximumStateCount = Math.max(...storedStates.value.map(states => states.length))
+    for (let index = storedStateIndex + 1; index < maximumStateCount; index++) {
+      if (storedStates.value.every(states => !states[index])) return index
+    }
+    return null
+  }
+
   function storeCurrentState() {
     const channelIndex = currentIndex.value
     const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
@@ -1342,24 +1350,34 @@ export function useChannels() {
   }
 
   function storeAllStates() {
+    const selectedIndex = activeStoredStateIndexes.value[currentIndex.value] ?? 0
     channels.forEach((channel, channelIndex) => {
-      const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
       storedStates.value[channelIndex][selectedIndex] = snapshotChannelState(channel)
-      selectNextEmptyStoredState(channelIndex, selectedIndex)
+      storedStateDirty.value[channelIndex][selectedIndex] = false
+      activeStoredStateIndexes.value[channelIndex] = selectedIndex
     })
+    const nextEmptyIndex = findNextCommonEmptyStoredState(selectedIndex)
+    if (nextEmptyIndex !== null) {
+      activeStoredStateIndexes.value = channels.map(() => nextEmptyIndex)
+    }
   }
 
   function applyAllStoredStates(index: number) {
     channels.forEach((channel, channelIndex) => {
+      clearPreviousStoredStateDirty(channelIndex, index)
       activeStoredStateIndexes.value[channelIndex] = index
       const state = storedStates.value[channelIndex][index]
-      if (state) applyChannelState(channel, state)
+      if (state) {
+        applyChannelState(channel, state)
+        normalizeArrangement(channel)
+      }
     })
   }
 
   function clearAllStoredStates(index: number) {
     channels.forEach((_, channelIndex) => {
       storedStates.value[channelIndex][index] = null
+      storedStateDirty.value[channelIndex][index] = false
       if (activeStoredStateIndexes.value[channelIndex] === index) {
         activeStoredStateIndexes.value[channelIndex] = null
       }
