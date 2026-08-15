@@ -79,7 +79,7 @@ export function useChannels() {
     onStop: () => { if (globalPlaying.value) stopAll() }
   })
 
-  function isValidStoredStateIndex(value: unknown) {
+  function isValidStoredStateIndex(value: unknown): value is number {
     return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < STORED_STATE_COUNT
   }
 
@@ -277,6 +277,29 @@ export function useChannels() {
 
   function toggleToneMaterial(note: number) {
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      const keyPitchClass = KEYS.find(key => key.name === arrangementState.key)?.pitchClass
+      const isKeyNote = Number.isInteger(note) && arrangementState.key !== NO_KEY &&
+        keyPitchClass !== undefined && MAJOR_SCALE_OFFSETS.includes((note % 12 - keyPitchClass + 12) % 12)
+      const activeOctaves = channel.selectedOctaves.length ? channel.selectedOctaves : [arrangementState.octave]
+      const pitchOffset = (note % 12 + 12) % 12
+      const octaveNotes = activeOctaves.map(octave => 12 * (octave + 1) + pitchOffset)
+      const isExcluded = arrangementState.excludedNotes?.includes(note) ?? false
+      const isAdditional = arrangementState.additionalNotes?.includes(note) ?? false
+
+      if (isExcluded) {
+        arrangementState.excludedNotes = (arrangementState.excludedNotes ?? []).filter((candidate: number) => !octaveNotes.includes(candidate))
+      } else if (isKeyNote) {
+        arrangementState.excludedNotes = [...new Set([...(arrangementState.excludedNotes ?? []), ...octaveNotes])].sort((a, b) => a - b)
+      } else if (isAdditional) {
+        arrangementState.additionalNotes = (arrangementState.additionalNotes ?? []).filter((candidate: number) => !octaveNotes.includes(candidate))
+      } else {
+        arrangementState.additionalNotes = [...new Set([...(arrangementState.additionalNotes ?? []), ...octaveNotes])].sort((a, b) => a - b)
+      }
+      return
+    }
+
     const isKeyNote = isKeyTone(channel, note)
     channel.toneMaterialCursor = note
     const activeOctaves = channel.selectedOctaves.length
@@ -408,15 +431,12 @@ export function useChannels() {
     const state = storedStates.value[channelIndex][storedStateIndex]
     if (!state) return
 
-    channel.arrangementRowIndex = rowIndex
-    channel.arrangementIndex = slotIndex
-    activeArrangementStateIndexes.value[channelIndex] = storedStateIndex
     activeStoredStateIndexes.value[channelIndex] = storedStateIndex
     channel.followArrangementView = false
-    applyChannelState(channel, state, { applyPlaybackMode: false })
   }
 
   function persistArrangementSlotState(channel: Channel) {
+    if (getEditableArrangementState(channel)) return
     const rowIndex = channel.arrangementRowIndex
     const slotIndex = channel.arrangementIndex
     if (rowIndex === null || slotIndex === null) return
@@ -424,6 +444,14 @@ export function useChannels() {
     const storedStateIndex = channel.arrangementRows[rowIndex]?.[slotIndex]
     if (!isValidStoredStateIndex(storedStateIndex)) return
     storedStates.value[channel.id][storedStateIndex] = snapshotChannelState(channel)
+  }
+
+  function getEditableArrangementState(channel: Channel) {
+    if (channel.playbackMode !== 'arrangement' || channel.followArrangementView) return null
+    const storedStateIndex = activeStoredStateIndexes.value[channel.id]
+    return isValidStoredStateIndex(storedStateIndex)
+      ? storedStates.value[channel.id][storedStateIndex]
+      : null
   }
 
   function toggleFollowArrangementView(index: number) {
@@ -440,35 +468,41 @@ export function useChannels() {
 
   function cycleStep(payload:any){
     const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    const editor = arrangementState ?? channel
     // payload can be a number (legacy) or {step, note}
     if (typeof payload === 'number') {
       // legacy: toggle through available notes by rotating index into channel.notes
       const stepIndex = payload
-      const noteCount = channel.notes.length
+      const noteCount = editor.notes.length
       if (noteCount === 0) {
-        channel.steps[stepIndex] = -1
-        channel.arpeggiator.setSteps(channel.steps)
-        persistArrangementSlotState(channel)
+        editor.steps[stepIndex] = -1
+        if (!arrangementState) {
+          channel.arpeggiator.setSteps(channel.steps)
+          persistArrangementSlotState(channel)
+        }
         return
       }
-      const current = channel.steps[stepIndex]
+      const current = editor.steps[stepIndex]
       // if current is a MIDI note, find its index among channel.notes
-      let idx = typeof current === 'number' ? channel.notes.indexOf(current) : -1
+      let idx = typeof current === 'number' ? editor.notes.indexOf(current) : -1
       if (idx === -1) idx = -1
       idx = idx + 1
       if (idx >= noteCount) {
-        channel.steps[stepIndex] = -1
+        editor.steps[stepIndex] = -1
       } else {
-        channel.steps[stepIndex] = channel.notes[idx]
+        editor.steps[stepIndex] = editor.notes[idx]
       }
 
-      channel.arpeggiator.setSteps(channel.steps)
-      persistArrangementSlotState(channel)
+      if (!arrangementState) {
+        channel.arpeggiator.setSteps(channel.steps)
+        persistArrangementSlotState(channel)
+      }
       return
     }
 
     const { step, note, add = false } = payload
-    const newSteps = channel.steps.slice()
+    const newSteps = editor.steps.slice()
     if (add) {
       const current = newSteps[step]
       let sustainSourceIndex = -1
@@ -507,21 +541,23 @@ export function useChannels() {
           : isSustainedStep(current)
             ? { notes: chord.length === 1 ? chord[0] : chord, duration: current.duration }
             : chord.length === 1 ? chord[0] : chord
-        if (chord.length > 0 && !channel.notes.includes(note)) {
-          channel.notes = [...channel.notes, note].sort((a, b) => a - b)
+        if (chord.length > 0 && !editor.notes.includes(note)) {
+          editor.notes = [...editor.notes, note].sort((a, b) => a - b)
         }
       }
     } else if (newSteps[step] === note) newSteps[step] = -1
     else {
       newSteps[step] = note
-      if (!channel.notes.includes(note)) {
-        channel.notes = [...channel.notes, note].sort((a, b) => a - b)
+      if (!editor.notes.includes(note)) {
+        editor.notes = [...editor.notes, note].sort((a, b) => a - b)
       }
     }
-    channel.steps = newSteps
-    channel.arpeggiator.setNotes(channel.notes)
-    channel.arpeggiator.setSteps(channel.steps)
-    persistArrangementSlotState(channel)
+    editor.steps = newSteps
+    if (!arrangementState) {
+      channel.arpeggiator.setNotes(channel.notes)
+      channel.arpeggiator.setSteps(channel.steps)
+      persistArrangementSlotState(channel)
+    }
   }
 
   function updateEditorOctaves(octaves: number[]) {
