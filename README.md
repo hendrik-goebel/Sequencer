@@ -17,3 +17,5 @@ Notes:
   `M` mutes the current channel, Command+`M` mutes/unmutes all channels, Space toggles
   the current channel, `V` triggers its variation, and Command+`V` triggers the global variation.
 - With Caps Lock active, play the current channel from the German keyboard layout: `A S D F G H J K L` are white keys and `W E R T Z U I O P` are black keys.
+
+test
