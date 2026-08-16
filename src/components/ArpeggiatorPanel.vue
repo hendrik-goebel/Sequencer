@@ -241,7 +241,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         >{{ index + 1 }}</button>
       </div>
       <div class="state-library-actions">
-        <button class="store-button" @click="$emit('store-state')">Store state</button>
+        <button class="store-button" @click="$emit('store-state')">Save</button>
         <button class="add-state-row-button" @click="$emit('add-stored-state-row')">Add row</button>
       </div>
     </div>

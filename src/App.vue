@@ -278,6 +278,7 @@ useKeyboard({
   shiftCurrentChannelNotes: handleShiftNotes,
   shiftCurrentToneMaterial,
   storeState: handleStoreState,
+  toggleGlobalActions,
   playKeyboardNote
 })
 onMounted(() => {

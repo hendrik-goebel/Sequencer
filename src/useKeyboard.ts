@@ -12,6 +12,7 @@ interface KeyboardHandlers {
   shiftCurrentChannelNotes: (direction: 1 | -1) => void
   shiftCurrentToneMaterial: (direction: 1 | -1) => void
   storeState: () => void
+  toggleGlobalActions: () => void
   playKeyboardNote: (key: string) => boolean
 }
 
@@ -75,6 +76,11 @@ export function useKeyboard(handlers: KeyboardHandlers) {
         event.preventDefault()
         return
       }
+      if (key === 'g') {
+        handlers.toggleGlobalActions()
+        event.preventDefault()
+        return
+      }
     }
 
     if (!event.getModifierState('CapsLock')) return
@@ -84,6 +90,7 @@ export function useKeyboard(handlers: KeyboardHandlers) {
   function clearControlFocus() {
     const activeElement = document.activeElement
     if (activeElement instanceof HTMLElement) activeElement.blur()
+    document.body.focus()
   }
 
   function handleControlChange(event: Event) {
