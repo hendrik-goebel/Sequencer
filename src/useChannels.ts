@@ -222,6 +222,14 @@ export function useChannels() {
   }
 
   function syncMidiClockTransport() {
+    // A connected clock input makes this app a MIDI-clock slave.  Do not send
+    // clock at the same time: many MIDI interfaces/devices echo outgoing realtime
+    // messages back to their input, which otherwise adds a second clock stream
+    // and makes the measured tempo jump when transport starts.
+    if (midiClockInputEnabled.value) {
+      midiClockOutput.stop()
+      return
+    }
     if (!midiClockOutputEnabled.value) return
     if (channels.some(channel => channel.playing)) midiClockOutput.start()
     else midiClockOutput.stop()
@@ -1495,13 +1503,15 @@ export function useChannels() {
     midiClockOutputEnabled.value = id !== null
     midiClockOutput.setOutput(getOutput(id))
     if (id === null) midiClockOutput.stop()
-    else if (globalPlaying.value) midiClockOutput.start()
+    else if (globalPlaying.value) syncMidiClockTransport()
   }
 
   function setClockInput(id: string | null) {
     clockInputId.value = id
     midiClockInputEnabled.value = id !== null
     midiClockInput.setInput(getInput(id))
+    // Switch clock direction immediately when the input is enabled/disabled.
+    syncMidiClockTransport()
   }
 
   initializeRandomState()
