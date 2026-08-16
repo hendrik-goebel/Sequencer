@@ -20,6 +20,14 @@ export function useKeyboard(handlers: KeyboardHandlers) {
   function handleKeydown(event: KeyboardEvent) {
     if (event.repeat) return
 
+    const target = event.target
+    if (target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)) {
+      return
+    }
+
     const key = event.key.toLowerCase()
     if (event.metaKey && key === 'm') {
       handlers.toggleMuteAll()
