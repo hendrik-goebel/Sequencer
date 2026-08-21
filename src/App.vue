@@ -46,6 +46,7 @@
       @update-random-note-probability="updateRandomNoteProbability"
       @update-random-timing-variation="updateRandomTimingVariation"
       @update-random-velocity-variation="updateRandomVelocityVariation"
+      @update-random-tone-variation="updateRandomToneVariation"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
@@ -113,6 +114,7 @@ const {
   updateRandomNoteProbability,
   updateRandomTimingVariation,
   updateRandomVelocityVariation,
+  updateRandomToneVariation,
   cycleStep,
   updateVelocity,
   clearNotes,

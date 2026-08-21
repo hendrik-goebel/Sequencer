@@ -47,6 +47,7 @@ const emit = defineEmits<{
   (event: 'update-random-note-probability', value: number): void
   (event: 'update-random-timing-variation', value: number): void
   (event: 'update-random-velocity-variation', value: number): void
+  (event: 'update-random-tone-variation', value: number): void
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
@@ -236,6 +237,13 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
             <output>±{{ visualChannel.randomVelocityVariation }}</output>
           </span>
         </label>
+        <label class="randomization-control">
+          <span>Tone</span>
+          <span class="randomization-slider-row">
+            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomToneVariation" aria-label="Tone variation from tone material to microtonal notes" @input="$emit('update-random-tone-variation', +($event.target as HTMLInputElement).value)" />
+            <output>{{ visualChannel.randomToneVariation }}</output>
+          </span>
+        </label>
       </div>
     </section>
     <div class="state-storage">
@@ -361,7 +369,7 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .sequencer { overflow-x: auto; }
 .randomization-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); }
 .randomization-section h3 { color: var(--teal); }
-.randomization-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: .8rem; }
+.randomization-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; margin-top: .8rem; }
 .randomization-control { display: grid; gap: .5rem; color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .09em; }
 .randomization-control small { color: var(--text-dim); font-size: .5rem; }
 .randomization-slider-row { display: flex; align-items: center; gap: .55rem; }

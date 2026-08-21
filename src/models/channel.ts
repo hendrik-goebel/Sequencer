@@ -1,7 +1,7 @@
 import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
 import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
@@ -23,6 +23,7 @@ export interface Channel {
   randomNoteProbability: number
   randomTimingVariation: number
   randomVelocityVariation: number
+  randomToneVariation: number
   steps: StepValue[]
   velocities: number[]
   base: number
@@ -86,6 +87,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     randomNoteProbability: 0,
     randomTimingVariation: 0,
     randomVelocityVariation: 0,
+    randomToneVariation: 0,
     steps: DEFAULT_STEPS.slice() as StepValue[],
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
@@ -114,8 +116,19 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
 
   arpeggiator.on('note', (payload) => {
     channel.active = true
-    const materialNotes = getToneMaterials(channel, channel.selectedOctaves)
-    const eligibleRandomNotes = materialNotes.filter(candidate => candidate !== payload.note)
+    const activeOctaves = channel.selectedOctaves.length ? channel.selectedOctaves : [channel.octave]
+    const materialNotes = getToneMaterials(channel, activeOctaves)
+    const chromaticNotes = activeOctaves.flatMap(octave =>
+      Array.from({ length: 12 }, (_, index) => 12 * (octave + 1) + index)
+    )
+    const microtonalNotes = activeOctaves.flatMap(octave =>
+      Array.from({ length: Math.round(12 / MICROTONAL_STEP) }, (_, index) =>
+        12 * (octave + 1) + index * MICROTONAL_STEP)
+    )
+    const tonePool = channel.randomToneVariation <= 50
+      ? (Math.random() < channel.randomToneVariation / 50 ? chromaticNotes : materialNotes)
+      : (Math.random() < (channel.randomToneVariation - 50) / 50 ? microtonalNotes : chromaticNotes)
+    const eligibleRandomNotes = [...new Set(tonePool)].filter(candidate => candidate !== payload.note)
     const shouldSubstituteNote = eligibleRandomNotes.length > 0 &&
       Math.random() < channel.randomNoteProbability
     const note = shouldSubstituteNote
