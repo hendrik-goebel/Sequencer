@@ -21,6 +21,8 @@ export interface Channel {
   excludedNotes: number[]
   reduceNotes: boolean
   randomNoteProbability: number
+  randomTimingVariation: number
+  randomVelocityVariation: number
   steps: StepValue[]
   velocities: number[]
   base: number
@@ -82,6 +84,8 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     excludedNotes: [] as number[],
     reduceNotes: false,
     randomNoteProbability: 0,
+    randomTimingVariation: 0,
+    randomVelocityVariation: 0,
     steps: DEFAULT_STEPS.slice() as StepValue[],
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
@@ -117,12 +121,20 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     const note = shouldSubstituteNote
       ? eligibleRandomNotes[Math.floor(Math.random() * eligibleRandomNotes.length)]
       : payload.note
-    const { velocity, length } = payload
-    const outputId = selectedOutputId.value
-    console.log(`[note-start] ${channel.name} note=${note} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
-    if (!channel.muted && outputId) sendNote(outputId, note, velocity, length, channel.midiChannel - 1)
-    log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTE ${note} vel=${velocity} len=${length}`)
-    const timeoutMs = Math.max(length || channel.noteLength || 120, 120)
+    const velocityOffset = Math.round((Math.random() * 2 - 1) * channel.randomVelocityVariation)
+    const velocity = Math.max(0, Math.min(127, payload.velocity + velocityOffset))
+    const timingOffset = Math.round(Math.random() * channel.randomTimingVariation)
+    const { length } = payload
+
+    setTimeout(() => {
+      if (!channel.playing) return
+      const outputId = selectedOutputId.value
+      console.log(`[note-start] ${channel.name} note=${note} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
+      if (!channel.muted && outputId) sendNote(outputId, note, velocity, length, channel.midiChannel - 1)
+      log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTE ${note} vel=${velocity} len=${length}`)
+    }, timingOffset)
+
+    const timeoutMs = timingOffset + Math.max(length || channel.noteLength || 120, 120)
     setTimeout(() => { channel.active = false }, timeoutMs)
   })
 

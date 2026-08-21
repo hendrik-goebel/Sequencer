@@ -417,6 +417,14 @@ export function useChannels() {
     currentChannel.value.randomNoteProbability = Math.max(0, Math.min(100, value)) / 100
   }
 
+  function updateRandomTimingVariation(value: number) {
+    currentChannel.value.randomTimingVariation = Math.max(0, Math.min(100, value))
+  }
+
+  function updateRandomVelocityVariation(value: number) {
+    currentChannel.value.randomVelocityVariation = Math.max(0, Math.min(100, value))
+  }
+
   function setPlaybackMode(index: number, mode: PlaybackMode) {
     const channel = channels[index]
     if (!channel) return
@@ -1410,6 +1418,8 @@ export function useChannels() {
     target.excludedNotes = source.excludedNotes.slice()
     target.reduceNotes = source.reduceNotes
     target.randomNoteProbability = source.randomNoteProbability
+    target.randomTimingVariation = source.randomTimingVariation
+    target.randomVelocityVariation = source.randomVelocityVariation
     target.steps = source.steps.map(cloneStep)
     target.base = source.base
     target.octave = source.octave
@@ -1542,6 +1552,8 @@ export function useChannels() {
     toggleMicrotones,
     toggleReduceNotes,
     updateRandomNoteProbability,
+    updateRandomTimingVariation,
+    updateRandomVelocityVariation,
     cycleStep,
     updateVelocity,
     clearNotes,

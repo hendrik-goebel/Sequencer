@@ -45,6 +45,8 @@ const emit = defineEmits<{
   (event: 'update-quant', value: number): void
   (event: 'update-arpeggio-length', value: number): void
   (event: 'update-random-note-probability', value: number): void
+  (event: 'update-random-timing-variation', value: number): void
+  (event: 'update-random-velocity-variation', value: number): void
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
@@ -220,13 +222,19 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
             <output>{{ Math.round(visualChannel.randomNoteProbability * 100) }}%</output>
           </span>
         </label>
-        <label class="randomization-control is-pending">
-          <span>Timing variation <small>COMING SOON</small></span>
-          <input type="range" min="0" max="100" value="0" disabled aria-label="Timing variation, coming soon" />
+        <label class="randomization-control">
+          <span>Timing variation</span>
+          <span class="randomization-slider-row">
+            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomTimingVariation" aria-label="Maximum timing variation in milliseconds" @input="$emit('update-random-timing-variation', +($event.target as HTMLInputElement).value)" />
+            <output>{{ visualChannel.randomTimingVariation }}ms</output>
+          </span>
         </label>
-        <label class="randomization-control is-pending">
-          <span>Velocity variation <small>COMING SOON</small></span>
-          <input type="range" min="0" max="100" value="0" disabled aria-label="Velocity variation, coming soon" />
+        <label class="randomization-control">
+          <span>Velocity variation</span>
+          <span class="randomization-slider-row">
+            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomVelocityVariation" aria-label="Maximum velocity variation" @input="$emit('update-random-velocity-variation', +($event.target as HTMLInputElement).value)" />
+            <output>±{{ visualChannel.randomVelocityVariation }}</output>
+          </span>
         </label>
       </div>
     </section>
@@ -359,7 +367,6 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .randomization-slider-row { display: flex; align-items: center; gap: .55rem; }
 .randomization-slider-row input, .randomization-control > input { width: 100%; min-width: 0; padding: 0; accent-color: var(--teal); }
 .randomization-slider-row output { min-width: 2.5rem; color: var(--teal-soft); font: 700 .7rem ui-monospace, monospace; text-align: right; }
-.randomization-control.is-pending { opacity: .5; }
 .note-grid-scroll {
   max-height: 32rem;
   overflow: auto;
