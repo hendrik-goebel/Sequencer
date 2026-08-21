@@ -413,6 +413,10 @@ export function useChannels() {
     persistArrangementSlotState(channel)
   }
 
+  function updateRandomNoteProbability(value: number) {
+    currentChannel.value.randomNoteProbability = Math.max(0, Math.min(100, value)) / 100
+  }
+
   function setPlaybackMode(index: number, mode: PlaybackMode) {
     const channel = channels[index]
     if (!channel) return
@@ -1405,6 +1409,7 @@ export function useChannels() {
     target.additionalNotes = source.additionalNotes.slice()
     target.excludedNotes = source.excludedNotes.slice()
     target.reduceNotes = source.reduceNotes
+    target.randomNoteProbability = source.randomNoteProbability
     target.steps = source.steps.map(cloneStep)
     target.base = source.base
     target.octave = source.octave
@@ -1536,6 +1541,7 @@ export function useChannels() {
     toggleToneMaterial,
     toggleMicrotones,
     toggleReduceNotes,
+    updateRandomNoteProbability,
     cycleStep,
     updateVelocity,
     clearNotes,

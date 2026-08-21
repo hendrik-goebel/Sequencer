@@ -43,6 +43,7 @@
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="toggleGlobalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
+      @update-random-note-probability="updateRandomNoteProbability"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
@@ -107,6 +108,7 @@ const {
   toggleToneMaterial,
   toggleMicrotones,
   toggleReduceNotes,
+  updateRandomNoteProbability,
   cycleStep,
   updateVelocity,
   clearNotes,

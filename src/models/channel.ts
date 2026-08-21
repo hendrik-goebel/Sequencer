@@ -2,6 +2,7 @@ import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
 import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, CircleOfFifthsKey } from '../config'
+import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
 export type PlaybackMode = 'state' | 'arrangement'
@@ -19,6 +20,7 @@ export interface Channel {
   additionalNotes: number[]
   excludedNotes: number[]
   reduceNotes: boolean
+  randomNoteProbability: number
   steps: StepValue[]
   velocities: number[]
   base: number
@@ -79,6 +81,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     additionalNotes: [] as number[],
     excludedNotes: [] as number[],
     reduceNotes: false,
+    randomNoteProbability: 0,
     steps: DEFAULT_STEPS.slice() as StepValue[],
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
@@ -107,7 +110,14 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
 
   arpeggiator.on('note', (payload) => {
     channel.active = true
-    const { note, velocity, length } = payload
+    const materialNotes = getToneMaterials(channel, channel.selectedOctaves)
+    const eligibleRandomNotes = materialNotes.filter(candidate => candidate !== payload.note)
+    const shouldSubstituteNote = eligibleRandomNotes.length > 0 &&
+      Math.random() < channel.randomNoteProbability
+    const note = shouldSubstituteNote
+      ? eligibleRandomNotes[Math.floor(Math.random() * eligibleRandomNotes.length)]
+      : payload.note
+    const { velocity, length } = payload
     const outputId = selectedOutputId.value
     console.log(`[note-start] ${channel.name} note=${note} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
     if (!channel.muted && outputId) sendNote(outputId, note, velocity, length, channel.midiChannel - 1)

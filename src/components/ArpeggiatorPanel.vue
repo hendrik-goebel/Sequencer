@@ -44,6 +44,7 @@ const emit = defineEmits<{
   (event: 'update-loop-length', value: number): void
   (event: 'update-quant', value: number): void
   (event: 'update-arpeggio-length', value: number): void
+  (event: 'update-random-note-probability', value: number): void
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
@@ -201,6 +202,34 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         <VerticalSlider v-for="(velocity, index) in visualChannel.velocities.slice(0, visualChannel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
       </div>
     </div>
+    <section class="randomization-section" aria-labelledby="randomization-heading">
+      <h3 id="randomization-heading">RANDOMIZATION</h3>
+      <div class="randomization-controls">
+        <label class="randomization-control">
+          <span>Note substitution</span>
+          <span class="randomization-slider-row">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              :value="Math.round(visualChannel.randomNoteProbability * 100)"
+              aria-label="Note substitution probability"
+              @input="$emit('update-random-note-probability', +($event.target as HTMLInputElement).value)"
+            />
+            <output>{{ Math.round(visualChannel.randomNoteProbability * 100) }}%</output>
+          </span>
+        </label>
+        <label class="randomization-control is-pending">
+          <span>Timing variation <small>COMING SOON</small></span>
+          <input type="range" min="0" max="100" value="0" disabled aria-label="Timing variation, coming soon" />
+        </label>
+        <label class="randomization-control is-pending">
+          <span>Velocity variation <small>COMING SOON</small></span>
+          <input type="range" min="0" max="100" value="0" disabled aria-label="Velocity variation, coming soon" />
+        </label>
+      </div>
+    </section>
     <div class="state-storage">
       <button class="variation-button" @click="$emit('channel-variation')">var</button>
       <button class="variation-button" aria-label="Move arpeggio notes up" @click="$emit('shift-notes', 1)">up</button>
@@ -322,6 +351,15 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .follow-button.active { border-color: var(--lavender); background: var(--lavender-deep); color: var(--lavender-soft); }
 .follow-button:disabled { opacity: .45; cursor: not-allowed; }
 .sequencer { overflow-x: auto; }
+.randomization-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); }
+.randomization-section h3 { color: var(--teal); }
+.randomization-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: .8rem; }
+.randomization-control { display: grid; gap: .5rem; color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .09em; }
+.randomization-control small { color: var(--text-dim); font-size: .5rem; }
+.randomization-slider-row { display: flex; align-items: center; gap: .55rem; }
+.randomization-slider-row input, .randomization-control > input { width: 100%; min-width: 0; padding: 0; accent-color: var(--teal); }
+.randomization-slider-row output { min-width: 2.5rem; color: var(--teal-soft); font: 700 .7rem ui-monospace, monospace; text-align: right; }
+.randomization-control.is-pending { opacity: .5; }
 .note-grid-scroll {
   max-height: 32rem;
   overflow: auto;
