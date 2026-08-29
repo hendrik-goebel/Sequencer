@@ -24,6 +24,7 @@ export interface Channel {
   randomTimingVariation: number
   randomVelocityVariation: number
   randomToneVariation: number
+  randomChordProbability: number
   steps: StepValue[]
   velocities: number[]
   base: number
@@ -88,6 +89,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     randomTimingVariation: 0,
     randomVelocityVariation: 0,
     randomToneVariation: 0,
+    randomChordProbability: 0,
     steps: DEFAULT_STEPS.slice() as StepValue[],
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
@@ -134,6 +136,11 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     const note = shouldSubstituteNote
       ? eligibleRandomNotes[Math.floor(Math.random() * eligibleRandomNotes.length)]
       : payload.note
+    const chordCandidates = [...new Set(tonePool)].filter(candidate => candidate !== note)
+    const shouldPlayChord = chordCandidates.length >= 3 && Math.random() < channel.randomChordProbability
+    const chordNotes = shouldPlayChord
+      ? [note, ...chordCandidates.sort(() => Math.random() - .5).slice(0, 3)]
+      : [note]
     const velocityOffset = Math.round((Math.random() * 2 - 1) * channel.randomVelocityVariation)
     const velocity = Math.max(0, Math.min(127, payload.velocity + velocityOffset))
     const timingOffset = Math.round(Math.random() * channel.randomTimingVariation)
@@ -142,9 +149,9 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     setTimeout(() => {
       if (!channel.playing) return
       const outputId = selectedOutputId.value
-      console.log(`[note-start] ${channel.name} note=${note} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
-      if (!channel.muted && outputId) sendNote(outputId, note, velocity, length, channel.midiChannel - 1)
-      log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTE ${note} vel=${velocity} len=${length}`)
+      console.log(`[note-start] ${channel.name} notes=${chordNotes.join(',')} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
+      if (!channel.muted && outputId) chordNotes.forEach(chordNote => sendNote(outputId, chordNote, velocity, length, channel.midiChannel - 1))
+      log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTES ${chordNotes.join(',')} vel=${velocity} len=${length}`)
     }, timingOffset)
 
     const timeoutMs = timingOffset + Math.max(length || channel.noteLength || 120, 120)

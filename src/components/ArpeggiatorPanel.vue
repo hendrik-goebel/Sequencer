@@ -48,6 +48,7 @@ const emit = defineEmits<{
   (event: 'update-random-timing-variation', value: number): void
   (event: 'update-random-velocity-variation', value: number): void
   (event: 'update-random-tone-variation', value: number): void
+  (event: 'update-random-chord-probability', value: number): void
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
@@ -242,6 +243,13 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           <span class="randomization-slider-row">
             <input type="range" min="0" max="100" step="1" :value="visualChannel.randomToneVariation" aria-label="Tone variation from tone material to microtonal notes" @input="$emit('update-random-tone-variation', +($event.target as HTMLInputElement).value)" />
             <output>{{ visualChannel.randomToneVariation }}</output>
+          </span>
+        </label>
+        <label class="randomization-control">
+          <span>Chords</span>
+          <span class="randomization-slider-row">
+            <input type="range" min="0" max="100" step="1" :value="Math.round(visualChannel.randomChordProbability * 100)" aria-label="Four-note chord probability" @input="$emit('update-random-chord-probability', +($event.target as HTMLInputElement).value)" />
+            <output>{{ Math.round(visualChannel.randomChordProbability * 100) }}%</output>
           </span>
         </label>
       </div>

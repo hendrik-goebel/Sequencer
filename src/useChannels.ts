@@ -429,6 +429,10 @@ export function useChannels() {
     currentChannel.value.randomToneVariation = Math.max(0, Math.min(100, value))
   }
 
+  function updateRandomChordProbability(value: number) {
+    currentChannel.value.randomChordProbability = Math.max(0, Math.min(100, value)) / 100
+  }
+
   function setPlaybackMode(index: number, mode: PlaybackMode) {
     const channel = channels[index]
     if (!channel) return
@@ -1425,6 +1429,7 @@ export function useChannels() {
     target.randomTimingVariation = source.randomTimingVariation
     target.randomVelocityVariation = source.randomVelocityVariation
     target.randomToneVariation = source.randomToneVariation
+    target.randomChordProbability = source.randomChordProbability
     target.steps = source.steps.map(cloneStep)
     target.base = source.base
     target.octave = source.octave
@@ -1560,6 +1565,7 @@ export function useChannels() {
     updateRandomTimingVariation,
     updateRandomVelocityVariation,
     updateRandomToneVariation,
+    updateRandomChordProbability,
     cycleStep,
     updateVelocity,
     clearNotes,
