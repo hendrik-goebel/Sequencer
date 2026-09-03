@@ -1,3 +1,5 @@
+import { listenToInputMessages } from './midi'
+
 const MIDI_CLOCK = 0xf8
 const MIDI_START = 0xfa
 const MIDI_CONTINUE = 0xfb
@@ -63,13 +65,14 @@ export function createMidiClockOutput(initialBpm: number) {
 
 export function createMidiClockInput(callbacks: MidiClockCallbacks = {}) {
   let input: WebMidi.MIDIInput | null = null
+  let detachInputListener: (() => void) | null = null
   let lastPulseAt = 0
   let running = false
   let smoothedBpm = 0
 
-  function handleMessage(event: any) {
-    const status = event?.data?.[0]
-    const timestamp = Number.isFinite(event?.timeStamp) ? event.timeStamp : performance.now()
+  function handleMessage(event: { data: number[], timeStamp: number }) {
+    const status = event.data[0]
+    const timestamp = event.timeStamp
 
     if (status === MIDI_CLOCK) {
       if (lastPulseAt > 0) {
@@ -100,11 +103,12 @@ export function createMidiClockInput(callbacks: MidiClockCallbacks = {}) {
   }
 
   function setInput(nextInput: WebMidi.MIDIInput | null) {
-    if (input) input.onmidimessage = null
+    detachInputListener?.()
+    detachInputListener = null
     input = nextInput
     lastPulseAt = 0
     smoothedBpm = 0
-    if (input) input.onmidimessage = handleMessage
+    if (input) detachInputListener = listenToInputMessages(input, handleMessage)
   }
 
   function dispose() {

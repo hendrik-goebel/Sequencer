@@ -68,6 +68,32 @@
     <MidiClockPanel :clock-outputs="clockOutputs" :clock-inputs="clockInputs" :clock-output-id="clockOutputId" :clock-input-id="clockInputId"
       @set-clock-output="setClockOutput" @set-clock-input="setClockInput" />
 
+    <button class="midi-learn-open" type="button" @click="midiLearnModalOpen = true">MIDI Learn</button>
+
+    <div v-if="midiLearnModalOpen" class="modal-backdrop" @click.self="midiLearnModalOpen = false">
+      <div class="midi-learn-modal" role="dialog" aria-modal="true" aria-labelledby="midi-learn-title">
+        <button class="modal-close" type="button" aria-label="Close MIDI Learn" @click="midiLearnModalOpen = false">Close</button>
+        <MidiLearnPanel
+          :inputs="midiLearnInputs"
+          :selected-input-id="selectedMidiLearnInputId"
+          :enabled="midiLearnEnabled"
+          :targets="midiLearnTargets"
+          :mappings="midiLearnMappings"
+          :active-target-id="midiLearnActiveTargetId"
+          :last-message="midiLearnLastMessage"
+          :status="midiLearnStatus"
+          @set-input="setMidiLearnInput"
+          @refresh-inputs="refreshMidiLearnInputs"
+          @toggle-enabled="toggleMidiLearnEnabled"
+          @start-learn="startMidiLearn"
+          @cancel-learn="cancelMidiLearn"
+          @clear-target="clearMidiLearnTarget"
+          @load-defaults="loadMidiMixDefaults"
+          @clear-all="clearMidiLearnMappings"
+        />
+      </div>
+    </div>
+
     <section class="seed-panel module">
       <h2>SEED</h2>
       <textarea v-model="seedKey" aria-label="Seed key" placeholder="Generate a seed key or paste one here"></textarea>
@@ -86,6 +112,7 @@ import ChannelsBar from './components/ChannelsBar.vue'
 import ArpeggiatorPanel from './components/ArpeggiatorPanel.vue'
 import MidiClockPanel from './components/MidiClockPanel.vue'
 import OutputRoutingPanel from './components/OutputRoutingPanel.vue'
+import MidiLearnPanel from './components/MidiLearnPanel.vue'
 import { useChannels } from './useChannels'
 import { KEYS, NO_KEY } from './config'
 import { useKeyboard } from './useKeyboard'
@@ -129,6 +156,21 @@ const {
   clockInputId,
   setClockOutput,
   setClockInput,
+  midiLearnInputs,
+  selectedMidiLearnInputId,
+  midiLearnEnabled,
+  midiLearnTargets,
+  midiLearnMappings,
+  midiLearnActiveTargetId,
+  midiLearnLastMessage,
+  midiLearnStatus,
+  setMidiLearnInput,
+  refreshMidiLearnInputs,
+  toggleMidiLearnEnabled,
+  startMidiLearn,
+  cancelMidiLearn,
+  clearMidiLearnTarget,
+  clearMidiLearnMappings,
   enableMidi,
   log,
   updateChannelBpm,
@@ -177,6 +219,7 @@ const {
 const seedKey = ref('')
 const seedStatus = ref('')
 const globalActions = ref(false)
+const midiLearnModalOpen = ref(false)
 
 function toggleGlobalActions() {
   globalActions.value = !globalActions.value
@@ -393,6 +436,26 @@ h2 { color: var(--text-muted); font-size: .7rem; letter-spacing: .16em; }
 .seed-actions .seed-generate { border-color: var(--teal); color: var(--teal-soft); background: var(--teal-deep); }
 .seed-actions .seed-load { border-color: var(--lavender); color: var(--lavender-soft); background: var(--lavender-deep); }
 .seed-status { color: var(--text-muted); font-size: .62rem; }
+.midi-learn-open {
+  display: block; width: 100%; margin-top: 1rem; border: 1px solid var(--teal); border-radius: 5px;
+  padding: .7rem 1rem; background: var(--teal-deep); color: var(--teal-soft); font-size: .65rem;
+  font-weight: 800; letter-spacing: .1em; cursor: pointer;
+}
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1rem;
+  background: rgba(4, 9, 13, .78);
+}
+.midi-learn-modal {
+  position: relative; width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto;
+  border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+}
+.modal-close {
+  position: absolute; top: .8rem; right: .8rem; z-index: 1; border: 1px solid var(--line-strong);
+  border-radius: 4px; padding: .4rem .6rem; background: var(--bg-control); color: var(--text);
+  font-size: .58rem; font-weight: 800; letter-spacing: .06em; cursor: pointer;
+}
+.midi-learn-modal :deep(.midi-learn-panel) { margin-top: 0; border: 0; }
 @media (max-width: 650px) {
   .instrument { margin-top: 1rem; }
   .instrument-header, .global-controls { align-items: flex-start; flex-direction: column; gap: 1rem; }

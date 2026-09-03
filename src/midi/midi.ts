@@ -8,9 +8,85 @@ const VIRTUAL_OUTPUTS = [{ id: SINE_OUTPUT_ID, name: 'Sine Synth (internal)' }]
 let sineSynthEnabled = false
 let audioContext: AudioContext | null = null
 
+export interface MidiInputMessage {
+  data: number[]
+  timeStamp: number
+  inputId: string
+  inputName: string
+  event: any
+}
+
+export type MidiInputListener = (message: MidiInputMessage) => void
+
+type InputListenerState = {
+  input: WebMidi.MIDIInput
+  listeners: Set<MidiInputListener>
+  onMessage: (event: any) => void
+}
+
+const inputListenerStates = new Map<string, InputListenerState>()
+
 function clampMidiValue(value: number) {
   const n = Math.round(Number(value) || 0)
   return Math.max(0, Math.min(127, n))
+}
+
+function clampMidiByte(value: number) {
+  const n = Math.round(Number(value) || 0)
+  return Math.max(0, Math.min(255, n))
+}
+
+function toMidiData(data: any): number[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data.map(value => clampMidiByte(value))
+  if (typeof data.length === 'number') {
+    return Array.from(data as ArrayLike<number>).map(value => clampMidiByte(value))
+  }
+  return []
+}
+
+function ensureInputListenerState(input: WebMidi.MIDIInput) {
+  const existing = inputListenerStates.get(input.id)
+  if (existing) return existing
+
+  const state: InputListenerState = {
+    input,
+    listeners: new Set<MidiInputListener>(),
+    onMessage: (event: any) => {
+      const listeners = inputListenerStates.get(input.id)?.listeners
+      if (!listeners?.size) return
+      const message: MidiInputMessage = {
+        data: toMidiData(event?.data),
+        timeStamp: Number.isFinite(event?.timeStamp) ? Number(event.timeStamp) : performance.now(),
+        inputId: input.id,
+        inputName: input.name || input.manufacturer || input.id,
+        event
+      }
+      listeners.forEach(listener => listener(message))
+    }
+  }
+  inputListenerStates.set(input.id, state)
+  return state
+}
+
+export function listenToInputMessages(input: WebMidi.MIDIInput | null, listener: MidiInputListener) {
+  if (!input) return () => {}
+
+  const state = ensureInputListenerState(input)
+  state.listeners.add(listener)
+  state.input.onmidimessage = state.onMessage
+
+  return () => {
+    const latestState = inputListenerStates.get(input.id)
+    if (!latestState) return
+    latestState.listeners.delete(listener)
+    if (!latestState.listeners.size) {
+      if (latestState.input.onmidimessage === latestState.onMessage) {
+        latestState.input.onmidimessage = null
+      }
+      inputListenerStates.delete(input.id)
+    }
+  }
 }
 
 function ensureAudio() {

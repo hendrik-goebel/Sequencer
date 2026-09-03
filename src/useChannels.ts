@@ -1,14 +1,34 @@
 import { ref, computed, watch } from 'vue'
-import { initMidi, listOutputs, listInputs, getOutput, getInput, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
+import { initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
 import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
+import { createMidiMixDefaultMappings, decodeMidiLearnMessage, isMidiLearnBinding, MidiLearnBinding, midiLearnBindingMatchesMessage, midiLearnMessageLabel, sanitizeMidiLearnBindings } from './midi/midiLearn'
 
 const SEED_PREFIX = 'ARP1-'
 const ADDITIONAL_VARIATION_CHANGE_CHANCE = 0.35
+const MIDI_LEARN_STORAGE_KEY = 'arp-midi-learn-state-v1'
+const MIDI_LEARN_TARGET_GROUPS = ['global', 'channel', 'sequence', 'velocity', 'randomization'] as const
+const PATTERN_OPTIONS: Pattern[] = ['up', 'down', 'updown', 'random']
+const QUANTISATION_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 32, 64] as const
+
+type MidiLearnTargetGroup = typeof MIDI_LEARN_TARGET_GROUPS[number]
+
+interface MidiLearnTarget {
+  id: string
+  label: string
+  group: MidiLearnTargetGroup
+}
+
+interface MidiLearnStateSnapshot {
+  version: 1
+  selectedInputId: string | null
+  enabled: boolean
+  mappings: Record<string, MidiLearnBinding>
+}
 
 interface SeedChannelState extends StoredArpeggiatorState {
   midiChannel: number
@@ -23,19 +43,70 @@ interface SeedChannelState extends StoredArpeggiatorState {
 }
 
 interface AppSeed {
-  version: 1
+  version: 1 | 2
   globalBpm: number
   globalKey: CircleOfFifthsKey
   currentIndex: number
   channels: SeedChannelState[]
   storedStates: (StoredArpeggiatorState | null)[][]
   activeStoredStateIndexes: (number | null)[]
+  midiLearn?: MidiLearnStateSnapshot
+}
+
+function hasLocalStorage() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function loadMidiLearnStateSnapshot(): MidiLearnStateSnapshot {
+  if (!hasLocalStorage()) {
+    return { version: 1, selectedInputId: null, enabled: true, mappings: {} }
+  }
+  try {
+    const rawState = window.localStorage.getItem(MIDI_LEARN_STORAGE_KEY)
+    if (!rawState) return { version: 1, selectedInputId: null, enabled: true, mappings: {} }
+    const value: unknown = JSON.parse(rawState)
+    if (!isRecordValue(value)) return { version: 1, selectedInputId: null, enabled: true, mappings: {} }
+    const selectedInputId = typeof value.selectedInputId === 'string' || value.selectedInputId === null
+      ? value.selectedInputId
+      : null
+    const enabled = typeof value.enabled === 'boolean' ? value.enabled : true
+    const mappings = sanitizeMidiLearnBindings(value.mappings)
+    return {
+      version: 1,
+      selectedInputId,
+      enabled,
+      mappings
+    }
+  } catch {
+    return { version: 1, selectedInputId: null, enabled: true, mappings: {} }
+  }
 }
 
 export function useChannels() {
+  const initialMidiLearnState = loadMidiLearnStateSnapshot()
   const log = ref<string[]>([])
   const outputs = ref<{id:string,name:string}[]>([])
   const selectedOutputId = ref<string | null>(null)
+  const midiLearnInputs = ref<{id:string,name:string}[]>([])
+  const selectedMidiLearnInputId = ref<string | null>(initialMidiLearnState.selectedInputId)
+  const midiLearnEnabled = ref(initialMidiLearnState.enabled)
+  const midiLearnActiveTargetId = ref<string | null>(null)
+  const midiLearnLastMessage = ref('')
+  const midiLearnStatus = ref('Select an input and start learning.')
+  const midiLearnMappings = ref<Record<string, MidiLearnBinding>>({ ...initialMidiLearnState.mappings })
+  const midiLearnState = computed(() => ({
+    selectedInputId: selectedMidiLearnInputId.value,
+    enabled: midiLearnEnabled.value,
+    activeTargetId: midiLearnActiveTargetId.value,
+    mappings: midiLearnMappings.value
+  }))
+  const midiLearnTriggerStates = new Map<string, number>()
+  let detachMidiLearnInputListener: (() => void) | null = null
+
   function createArrangementSlots(source?: (number | null)[]) {
     return Array.from({ length: ARRANGEMENT_SLOT_COUNT }, (_, index) => {
       const value = source?.[index]
@@ -85,6 +156,62 @@ export function useChannels() {
     onStart: () => { if (!globalPlaying.value) toggleGlobalPlay() },
     onStop: () => { if (globalPlaying.value) stopAll() }
   })
+  const keyOptions = [NO_KEY, ...KEYS.map(key => key.name)] as const
+  const midiLearnTargets = computed<MidiLearnTarget[]>(() => {
+    const targets: MidiLearnTarget[] = [
+      { id: 'global-tempo', label: 'Global tempo', group: 'global' },
+      { id: 'global-play', label: 'Global play/stop', group: 'global' },
+      { id: 'global-mute', label: 'Global mute all', group: 'global' },
+      { id: 'global-key', label: 'Global key', group: 'global' },
+      { id: 'global-variation', label: 'Global variation', group: 'global' }
+    ]
+
+    channels.forEach((channel, channelIndex) => {
+      const labelPrefix = `Channel ${channelIndex + 1}`
+      targets.push(
+        { id: `channel-${channel.id}-select`, label: `${labelPrefix} select`, group: 'channel' },
+        { id: `channel-${channel.id}-play`, label: `${labelPrefix} play/stop`, group: 'channel' },
+        { id: `channel-${channel.id}-mute`, label: `${labelPrefix} mute`, group: 'channel' },
+        { id: `channel-${channel.id}-key`, label: `${labelPrefix} key`, group: 'channel' },
+        { id: `channel-${channel.id}-midi-channel`, label: `${labelPrefix} MIDI channel`, group: 'channel' },
+        { id: `channel-${channel.id}-tempo`, label: `${labelPrefix} tempo`, group: 'channel' }
+      )
+    })
+
+    targets.push(
+      { id: 'sequence-pattern', label: 'Pattern', group: 'sequence' },
+      { id: 'sequence-arpeggio-length', label: 'Arpeggio length', group: 'sequence' },
+      { id: 'sequence-quantisation', label: 'Quantisation', group: 'sequence' },
+      { id: 'sequence-loop-length', label: 'Loop length', group: 'sequence' },
+      { id: 'sequence-note-length', label: 'Note length', group: 'sequence' },
+      { id: 'sequence-microtones', label: 'Microtones', group: 'sequence' },
+      { id: 'sequence-reduce', label: 'Reduce notes', group: 'sequence' },
+      { id: 'sequence-variation', label: 'Variation', group: 'sequence' },
+      { id: 'sequence-shift-up', label: 'Shift notes up', group: 'sequence' },
+      { id: 'sequence-shift-down', label: 'Shift notes down', group: 'sequence' },
+      { id: 'sequence-clear-grid', label: 'Clear grid', group: 'sequence' }
+    )
+
+    ARPEGGIO_OCTAVES.forEach(octave => {
+      targets.push({ id: `sequence-octave-${octave}`, label: `Octave ${octave}`, group: 'sequence' })
+    })
+
+    const velocityCount = Math.max(1, currentChannel.value?.loopLength ?? STEP_COUNT)
+    Array.from({ length: velocityCount }, (_, index) => index + 1).forEach(step => {
+      targets.push({ id: `velocity-step-${step}`, label: `Step ${step}`, group: 'velocity' })
+    })
+
+    targets.push(
+      { id: 'random-note-probability', label: 'Note substitution', group: 'randomization' },
+      { id: 'random-timing-variation', label: 'Timing variation', group: 'randomization' },
+      { id: 'random-velocity-variation', label: 'Velocity variation', group: 'randomization' },
+      { id: 'random-tone-variation', label: 'Tone variation', group: 'randomization' },
+      { id: 'random-chord-probability', label: 'Chord probability', group: 'randomization' }
+    )
+
+    return targets
+  })
+  const midiLearnTargetIdSet = computed(() => new Set(midiLearnTargets.value.map(target => target.id)))
 
   function isValidStoredStateIndex(value: unknown): value is number {
     return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -868,14 +995,355 @@ export function useChannels() {
     return true
   }
 
+  function persistMidiLearnState() {
+    if (!hasLocalStorage()) return
+    const snapshot: MidiLearnStateSnapshot = {
+      version: 1,
+      selectedInputId: midiLearnState.value.selectedInputId,
+      enabled: midiLearnState.value.enabled,
+      mappings: { ...midiLearnState.value.mappings }
+    }
+    try {
+      window.localStorage.setItem(MIDI_LEARN_STORAGE_KEY, JSON.stringify(snapshot))
+    } catch {}
+  }
+
+  function midiLearnControlValue(value: number) {
+    const normalized = Math.round(Number(value) || 0)
+    return Math.max(0, Math.min(127, normalized))
+  }
+
+  function midiLearnRangeValue(value: number, minimum: number, maximum: number) {
+    const clampedValue = midiLearnControlValue(value)
+    return Math.round(minimum + (clampedValue / 127) * (maximum - minimum))
+  }
+
+  function midiLearnIndexValue(value: number, length: number) {
+    if (length <= 1) return 0
+    const clampedValue = midiLearnControlValue(value)
+    return Math.round((clampedValue / 127) * (length - 1))
+  }
+
+  function midiLearnChannelTarget(targetId: string) {
+    const match = targetId.match(/^channel-(\d+)-(.+)$/)
+    if (!match) return null
+    const channelIndex = Number(match[1])
+    if (!Number.isInteger(channelIndex) || channelIndex < 0 || channelIndex >= channels.length) return null
+    return { channelIndex, control: match[2] }
+  }
+
+  function midiLearnVelocityTarget(targetId: string) {
+    const match = targetId.match(/^velocity-step-(\d+)$/)
+    if (!match) return null
+    const step = Number(match[1])
+    return Number.isInteger(step) && step >= 1 ? step - 1 : null
+  }
+
+  function midiLearnOctaveTarget(targetId: string) {
+    const match = targetId.match(/^sequence-octave-(\d+)$/)
+    if (!match) return null
+    const octave = Number(match[1])
+    return ARPEGGIO_OCTAVES.includes(octave) ? octave : null
+  }
+
+  function midiLearnTriggerPressed(targetId: string, binding: MidiLearnBinding, value: number) {
+    const key = `${targetId}:${binding.source}:${binding.channel}:${binding.control}`
+    const threshold = binding.source === 'cc' ? 64 : 1
+    const previousState = midiLearnTriggerStates.get(key) ?? 0
+    const nextState = value >= threshold ? 1 : 0
+    midiLearnTriggerStates.set(key, nextState)
+    return previousState === 0 && nextState === 1
+  }
+
+  function toggleCurrentOctave(octave: number) {
+    const selectedOctaves = new Set(currentChannel.value.selectedOctaves)
+    if (selectedOctaves.has(octave)) {
+      if (selectedOctaves.size <= 1) return
+      selectedOctaves.delete(octave)
+    } else {
+      selectedOctaves.add(octave)
+    }
+    updateEditorOctaves([...selectedOctaves].sort((a, b) => a - b))
+  }
+
+  function shiftCurrentEditorNotes(direction: 1 | -1) {
+    const channel = currentChannel.value
+    if (channel.playbackMode === 'arrangement') {
+      shiftArrangementNotes(channel.id, direction)
+    } else {
+      shiftCurrentChannelNotes(direction)
+    }
+  }
+
+  function applyMidiLearnTarget(targetId: string, messageValue: number, binding: MidiLearnBinding) {
+    const channelTarget = midiLearnChannelTarget(targetId)
+    if (channelTarget) {
+      const { channelIndex, control } = channelTarget
+      if (control === 'select') {
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) selectChannel(channelIndex)
+        return
+      }
+      if (control === 'play') {
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleChannelPlay(channelIndex)
+        return
+      }
+      if (control === 'mute') {
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleMute(channelIndex)
+        return
+      }
+      if (control === 'key') {
+        const keyIndex = midiLearnIndexValue(messageValue, keyOptions.length)
+        updateChannelKey(channelIndex, keyOptions[keyIndex])
+        return
+      }
+      if (control === 'midi-channel') {
+        updateMidiChannel(channelIndex, midiLearnRangeValue(messageValue, 1, 16))
+        return
+      }
+      if (control === 'tempo') {
+        updateChannelBpm(channelIndex, midiLearnRangeValue(messageValue, 20, 300))
+      }
+      return
+    }
+
+    const velocityIndex = midiLearnVelocityTarget(targetId)
+    if (velocityIndex !== null) {
+      if (velocityIndex < currentChannel.value.loopLength) {
+        updateVelocity({ index: velocityIndex, value: midiLearnControlValue(messageValue) })
+      }
+      return
+    }
+
+    const octaveTarget = midiLearnOctaveTarget(targetId)
+    if (octaveTarget !== null) {
+      if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleCurrentOctave(octaveTarget)
+      return
+    }
+
+    switch (targetId) {
+      case 'global-tempo':
+        setGlobalBpm(midiLearnRangeValue(messageValue, 20, 300))
+        return
+      case 'global-play':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleGlobalPlay()
+        return
+      case 'global-mute':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleMuteAll()
+        return
+      case 'global-key': {
+        const keyIndex = midiLearnIndexValue(messageValue, keyOptions.length)
+        updateGlobalKey(keyOptions[keyIndex])
+        return
+      }
+      case 'global-variation':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) createGlobalVariation()
+        return
+      case 'sequence-pattern':
+        updatePattern(PATTERN_OPTIONS[midiLearnIndexValue(messageValue, PATTERN_OPTIONS.length)])
+        return
+      case 'sequence-arpeggio-length':
+        updateArpeggioLength(midiLearnRangeValue(messageValue, 1, 32))
+        return
+      case 'sequence-quantisation':
+        updateQuantisation(QUANTISATION_OPTIONS[midiLearnIndexValue(messageValue, QUANTISATION_OPTIONS.length)])
+        return
+      case 'sequence-loop-length':
+        updateLoopLength(midiLearnRangeValue(messageValue, 1, MAX_LOOP_LENGTH))
+        return
+      case 'sequence-note-length':
+        updateNoteLength(NOTE_LENGTH_OPTIONS[midiLearnIndexValue(messageValue, NOTE_LENGTH_OPTIONS.length)])
+        return
+      case 'sequence-microtones':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleMicrotones()
+        return
+      case 'sequence-reduce':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) toggleReduceNotes()
+        return
+      case 'sequence-variation':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) createVariation(currentIndex.value)
+        return
+      case 'sequence-shift-up':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) shiftCurrentEditorNotes(1)
+        return
+      case 'sequence-shift-down':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) shiftCurrentEditorNotes(-1)
+        return
+      case 'sequence-clear-grid':
+        if (midiLearnTriggerPressed(targetId, binding, messageValue)) clearNotes()
+        return
+      case 'random-note-probability':
+        updateRandomNoteProbability(midiLearnControlValue(messageValue))
+        return
+      case 'random-timing-variation':
+        updateRandomTimingVariation(midiLearnControlValue(messageValue))
+        return
+      case 'random-velocity-variation':
+        updateRandomVelocityVariation(midiLearnControlValue(messageValue))
+        return
+      case 'random-tone-variation':
+        updateRandomToneVariation(midiLearnControlValue(messageValue))
+        return
+      case 'random-chord-probability':
+        updateRandomChordProbability(midiLearnControlValue(messageValue))
+    }
+  }
+
+  function midiLearnTargetLabel(targetId: string) {
+    return midiLearnTargets.value.find(target => target.id === targetId)?.label ?? targetId
+  }
+
+  function onMidiLearnInputMessage(event: { data: number[] }) {
+    const message = decodeMidiLearnMessage(event.data)
+    if (!message) return
+    midiLearnLastMessage.value = midiLearnMessageLabel(message)
+
+    if (midiLearnActiveTargetId.value) {
+      const learnedTargetId = midiLearnActiveTargetId.value
+      const reusedTarget = Object.entries(midiLearnMappings.value)
+        .find(([targetId, binding]) =>
+          targetId !== learnedTargetId && midiLearnBindingMatchesMessage(binding, message)
+        )?.[0]
+      midiLearnMappings.value = {
+        ...midiLearnMappings.value,
+        [learnedTargetId]: {
+          source: message.source,
+          channel: message.channel,
+          control: message.control
+        }
+      }
+      midiLearnActiveTargetId.value = null
+      midiLearnTriggerStates.clear()
+      midiLearnStatus.value = reusedTarget
+        ? `Mapped ${midiLearnTargetLabel(learnedTargetId)} to ${midiLearnLastMessage.value}; also used by ${midiLearnTargetLabel(reusedTarget)}`
+        : `Mapped ${midiLearnTargetLabel(learnedTargetId)} to ${midiLearnLastMessage.value}`
+      persistMidiLearnState()
+      return
+    }
+
+    if (!midiLearnEnabled.value) return
+    Object.entries(midiLearnMappings.value).forEach(([targetId, binding]) => {
+      if (!midiLearnBindingMatchesMessage(binding, message)) return
+      applyMidiLearnTarget(targetId, message.value, binding)
+    })
+  }
+
+  function attachMidiLearnInputListener() {
+    detachMidiLearnInputListener?.()
+    detachMidiLearnInputListener = null
+    midiLearnTriggerStates.clear()
+
+    const selectedInputId = selectedMidiLearnInputId.value
+    if (!selectedInputId) {
+      midiLearnStatus.value = 'MIDI Learn input off.'
+      return
+    }
+
+    const input = getInput(selectedInputId)
+    if (!input) {
+      midiLearnStatus.value = 'Selected MIDI Learn input is unavailable.'
+      return
+    }
+
+    detachMidiLearnInputListener = listenToInputMessages(input, onMidiLearnInputMessage)
+    if (!midiLearnActiveTargetId.value) {
+      midiLearnStatus.value = `Listening on ${input.name || input.manufacturer || input.id}`
+    }
+  }
+
+  async function refreshMidiLearnInputs() {
+    try {
+      await initMidi()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      midiLearnStatus.value = `MIDI unavailable: ${message}`
+    }
+    midiLearnInputs.value = listInputs()
+    const inputIds = new Set(midiLearnInputs.value.map(input => input.id))
+    if (selectedMidiLearnInputId.value && !inputIds.has(selectedMidiLearnInputId.value)) {
+      selectedMidiLearnInputId.value = null
+    }
+    attachMidiLearnInputListener()
+    persistMidiLearnState()
+  }
+
+  function setMidiLearnInput(id: string | null) {
+    selectedMidiLearnInputId.value = id
+    if (!id) midiLearnActiveTargetId.value = null
+    attachMidiLearnInputListener()
+    persistMidiLearnState()
+  }
+
+  function toggleMidiLearnEnabled() {
+    midiLearnEnabled.value = !midiLearnEnabled.value
+    if (!midiLearnEnabled.value) {
+      midiLearnStatus.value = 'MIDI Learn playback disabled.'
+    } else if (midiLearnActiveTargetId.value) {
+      midiLearnStatus.value = `Move a control for ${midiLearnTargetLabel(midiLearnActiveTargetId.value)}.`
+    } else if (selectedMidiLearnInputId.value) {
+      midiLearnStatus.value = 'MIDI Learn playback enabled.'
+    }
+    persistMidiLearnState()
+  }
+
+  function startMidiLearn(targetId: string) {
+    if (!midiLearnTargetIdSet.value.has(targetId)) return
+    if (!selectedMidiLearnInputId.value) {
+      midiLearnStatus.value = 'Select a MIDI Learn input first.'
+      return
+    }
+    midiLearnEnabled.value = true
+    midiLearnActiveTargetId.value = targetId
+    midiLearnStatus.value = `Move a control for ${midiLearnTargetLabel(targetId)}.`
+    persistMidiLearnState()
+  }
+
+  function cancelMidiLearn() {
+    midiLearnActiveTargetId.value = null
+    if (selectedMidiLearnInputId.value) {
+      midiLearnStatus.value = 'MIDI Learn ready.'
+    } else {
+      midiLearnStatus.value = 'MIDI Learn input off.'
+    }
+  }
+
+  function clearMidiLearnTarget(targetId: string) {
+    if (!midiLearnMappings.value[targetId]) return
+    const nextMappings = { ...midiLearnMappings.value }
+    delete nextMappings[targetId]
+    midiLearnMappings.value = nextMappings
+    midiLearnTriggerStates.clear()
+    persistMidiLearnState()
+  }
+
+  function clearMidiLearnMappings() {
+    midiLearnMappings.value = {}
+    midiLearnTriggerStates.clear()
+    persistMidiLearnState()
+  }
+
+  function loadMidiMixDefaults() {
+    midiLearnMappings.value = createMidiMixDefaultMappings(channels.length)
+    midiLearnActiveTargetId.value = null
+    midiLearnTriggerStates.clear()
+    midiLearnEnabled.value = true
+    midiLearnStatus.value = 'Loaded AKAI MIDI Mix defaults. Select MIDI Mix as the input if needed.'
+    persistMidiLearnState()
+  }
+
   async function enableMidi(){
     outputs.value = listOutputs()
     await initMidi()
     outputs.value = listOutputs()
     clockOutputs.value = outputs.value.filter(output => output.id !== SINE_OUTPUT_ID)
-    if (clockOutputs.value.length) setClockOutput(clockOutputs.value[0].id)
+    if (clockOutputs.value.length && !clockOutputId.value) setClockOutput(clockOutputs.value[0].id)
     clockInputs.value = listInputs()
-    if (outputs.value.length) selectedOutputId.value = outputs.value[0].id
+    await refreshMidiLearnInputs()
+    if (!selectedMidiLearnInputId.value && midiLearnInputs.value.length) {
+      selectedMidiLearnInputId.value = midiLearnInputs.value[0].id
+      attachMidiLearnInputListener()
+    }
+    if (outputs.value.length && !selectedOutputId.value) selectedOutputId.value = outputs.value[0].id
+    persistMidiLearnState()
   }
 
   watch(selectedOutputId, (id) => {
@@ -1168,15 +1636,25 @@ export function useChannels() {
     }
   }
 
+  function snapshotMidiLearnState(): MidiLearnStateSnapshot {
+    return {
+      version: 1,
+      selectedInputId: midiLearnState.value.selectedInputId,
+      enabled: midiLearnState.value.enabled,
+      mappings: { ...midiLearnState.value.mappings }
+    }
+  }
+
   function createSeed(): string {
     const seed: AppSeed = {
-      version: 1,
+      version: 2,
       globalBpm: globalBpm.value,
       globalKey: globalKey.value,
       currentIndex: currentIndex.value,
       channels: channels.map(snapshotSeedChannel),
       storedStates: storedStates.value.map(states => states.map(cloneStoredState)),
-      activeStoredStateIndexes: activeStoredStateIndexes.value.slice()
+      activeStoredStateIndexes: activeStoredStateIndexes.value.slice(),
+      midiLearn: snapshotMidiLearnState()
     }
     return `${SEED_PREFIX}${btoa(JSON.stringify(seed))}`
   }
@@ -1228,12 +1706,22 @@ export function useChannels() {
       (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < ARRANGEMENT_SLOT_COUNT))
   }
 
+  function isMidiLearnState(value: unknown): value is MidiLearnStateSnapshot {
+    if (!isRecord(value)) return false
+    if (value.version !== 1) return false
+    if (!(typeof value.selectedInputId === 'string' || value.selectedInputId === null)) return false
+    if (typeof value.enabled !== 'boolean') return false
+    if (!isRecord(value.mappings)) return false
+    return Object.values(value.mappings).every(isMidiLearnBinding)
+  }
+
   function decodeSeed(seedKey: string): AppSeed | null {
     if (!seedKey.startsWith(SEED_PREFIX)) return null
     try {
       const value: unknown = JSON.parse(atob(seedKey.slice(SEED_PREFIX.length)))
       if (!isRecord(value) ||
-          value.version !== 1 ||
+          typeof value.version !== 'number' ||
+          ![1, 2].includes(value.version) ||
           typeof value.globalBpm !== 'number' || !Number.isFinite(value.globalBpm) ||
           typeof value.globalKey !== 'string' ||
           (value.globalKey !== NO_KEY && !KEYS.some(key => key.name === value.globalKey)) ||
@@ -1244,6 +1732,7 @@ export function useChannels() {
           !value.storedStates.every(states => Array.isArray(states) && states.length > 0 && states.every(state => state === null || isStoredState(state))) ||
           !Array.isArray(value.activeStoredStateIndexes) || value.activeStoredStateIndexes.length !== channels.length ||
           !value.activeStoredStateIndexes.every(index => index === null || (typeof index === 'number' && Number.isInteger(index) && index >= 0)) ||
+          (value.version === 2 && 'midiLearn' in value && value.midiLearn !== undefined && !isMidiLearnState(value.midiLearn)) ||
           value.currentIndex < 0 || value.currentIndex >= channels.length) {
         return null
       }
@@ -1314,6 +1803,15 @@ export function useChannels() {
       applyChannelState(channel, state)
       normalizeArrangement(channel)
     })
+    if (seed.version === 2 && seed.midiLearn) {
+      selectedMidiLearnInputId.value = seed.midiLearn.selectedInputId
+      midiLearnEnabled.value = seed.midiLearn.enabled
+      midiLearnMappings.value = sanitizeMidiLearnBindings(seed.midiLearn.mappings)
+      midiLearnActiveTargetId.value = null
+      midiLearnTriggerStates.clear()
+      attachMidiLearnInputListener()
+      persistMidiLearnState()
+    }
     currentIndex.value = seed.currentIndex
     return null
   }
@@ -1580,6 +2078,23 @@ export function useChannels() {
     clockInputId,
     setClockOutput,
     setClockInput,
+    midiLearnInputs,
+    selectedMidiLearnInputId,
+    midiLearnEnabled,
+    midiLearnState,
+    midiLearnTargets,
+    midiLearnMappings,
+    midiLearnActiveTargetId,
+    midiLearnLastMessage,
+    midiLearnStatus,
+    setMidiLearnInput,
+    refreshMidiLearnInputs,
+    toggleMidiLearnEnabled,
+    startMidiLearn,
+    cancelMidiLearn,
+    clearMidiLearnTarget,
+    clearMidiLearnMappings,
+    loadMidiMixDefaults,
     enableMidi,
     log,
     updateChannelBpm,
