@@ -984,6 +984,7 @@ export function useChannels() {
     const patterns: Pattern[] = ['up', 'down', 'updown', 'random']
     const quantisations = [3, 4, 6, 8, 9, 12, 16]
     const randomOctaves = ARPEGGIO_OCTAVES.filter(octave => octave >= 3 && octave <= 6)
+    const randomNoteLengths = [3, 6, 8, 16]
     const randomBpm = 80 + Math.floor(Math.random() * 51)
     const randomKey = KEYS[Math.floor(Math.random() * KEYS.length)]
 
@@ -992,7 +993,7 @@ export function useChannels() {
     channels.forEach(channel => {
       const pattern = patterns[Math.floor(Math.random() * patterns.length)]
       const quantisation = quantisations[Math.floor(Math.random() * quantisations.length)]
-      const noteLength = NOTE_LENGTH_OPTIONS[Math.floor(Math.random() * NOTE_LENGTH_OPTIONS.length)]
+      const noteLength = randomNoteLengths[Math.floor(Math.random() * randomNoteLengths.length)]
       const octave = randomOctaves[Math.floor(Math.random() * randomOctaves.length)]
       const arpeggioLength = 1 + Math.floor(Math.random() * 8)
       const loopLength = 8 + Math.floor(Math.random() * 9)
