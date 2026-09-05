@@ -1,5 +1,6 @@
 <template>
   <main class="instrument">
+    <div class="current-channel-indicator" aria-live="polite">CH {{ String(currentIndex + 1).padStart(2, '0') }}</div>
 
     <section class="global-controls module">
       <div class="module-heading">
@@ -39,7 +40,7 @@
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       :selected-arrangement-row-index="currentSelectedArrangementSlot.rowIndex"
       :selected-arrangement-slot-index="currentSelectedArrangementSlot.slotIndex"
-      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi" @update-key="updateChannelKey(currentIndex, $event)" @update-material-amount="updateMaterialAmount"
+      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @randomize-velocities="randomizeVelocities" @toggle-play="togglePlay" @enable-midi="enableMidi" @update-key="updateChannelKey(currentIndex, $event)" @update-material-amount="updateMaterialAmount"
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="toggleGlobalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
@@ -99,6 +100,7 @@
       <textarea v-model="seedKey" aria-label="Seed key" placeholder="Generate a seed key or paste one here"></textarea>
       <div class="seed-actions">
         <button class="seed-generate" @click="seedKey = createSeed(); seedStatus = 'Seed generated'">Generate</button>
+        <button class="seed-copy" @click="copySeed">Copy</button>
         <button class="seed-load" @click="seedStatus = loadSeed(seedKey) ?? 'Seed loaded'">Load</button>
         <span v-if="seedStatus" class="seed-status">{{ seedStatus }}</span>
       </div>
@@ -146,6 +148,7 @@ const {
   updateRandomChordProbability,
   cycleStep,
   updateVelocity,
+  randomizeVelocities,
   clearNotes,
   playKeyboardNote,
   outputs,
@@ -224,6 +227,25 @@ const midiLearnModalOpen = ref(false)
 
 function toggleGlobalActions() {
   globalActions.value = !globalActions.value
+}
+
+async function copySeed() {
+  const seed = seedKey.value.trim()
+  if (!seed) {
+    seedStatus.value = 'No seed to copy'
+    return
+  }
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+    seedStatus.value = 'Clipboard unavailable'
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(seed)
+    seedStatus.value = 'Seed copied'
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    seedStatus.value = `Could not copy seed: ${message}`
+  }
 }
 
 function handleVariation() {
@@ -348,6 +370,20 @@ onMounted(() => {
   width: 862px;
   margin: 2rem auto;
   color: var(--text);
+}
+.current-channel-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: .4rem .55rem;
+  background: var(--bg-panel);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+  color: var(--teal);
+  font: 800 .62rem ui-monospace, monospace;
+  letter-spacing: .1em;
 }
 
 .instrument-header, .module-heading, .master-control {

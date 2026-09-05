@@ -35,6 +35,7 @@ const emit = defineEmits<{
   (event: 'toggle-tone-material', note: number): void
   (event: 'cycle-step', payload: any): void
   (event: 'update-velocity', payload: { index: number, value: number }): void
+  (event: 'randomize-velocities'): void
   (event: 'toggle-play'): void
   (event: 'enable-midi'): void
   (event: 'update-key', value: string): void
@@ -218,6 +219,9 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>
         <VerticalSlider v-for="(velocity, index) in visualChannel.velocities.slice(0, visualChannel.loopLength)" :key="index" :value="velocity" :min="0" :max="127" :label="`Velocity step ${index + 1}`" @update:value="$emit('update-velocity', { index, value: $event })" />
+      </div>
+      <div class="velocity-actions">
+        <button type="button" class="velocity-random-button" @click="$emit('randomize-velocities')">rand</button>
       </div>
     </div>
     <section class="randomization-section" aria-labelledby="randomization-heading">
@@ -424,6 +428,19 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
   font-weight: 800;
   letter-spacing: .1em;
 }
+.velocity-actions { display: flex; justify-content: flex-end; margin-top: .45rem; }
+.velocity-random-button {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: .4rem .55rem;
+  background: #1c2a33;
+  color: var(--text-muted);
+  font-size: .56rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+.velocity-random-button:hover { border-color: var(--teal); color: var(--teal-soft); }
 .velocity-row :deep(.vertical-slider) { width: 42px; flex: 0 0 42px; }
 .microtones-button {
   display: inline-flex;

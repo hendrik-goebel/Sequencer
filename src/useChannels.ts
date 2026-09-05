@@ -847,6 +847,21 @@ export function useChannels() {
     markCurrentStoredStateDirty()
   }
 
+  function randomizeVelocities() {
+    const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    const loopLength = arrangementState?.loopLength ?? channel.loopLength
+    const velocities = Array.from({ length: loopLength }, () => Math.floor(Math.random() * 128))
+    if (arrangementState) {
+      arrangementState.velocities = velocities
+      return
+    }
+    channel.velocities = velocities
+    channel.arpeggiator.setVelocities(channel.velocities)
+    persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
+  }
+
   function clearNotes(){
     const channel = currentChannel.value
     const arrangementState = getEditableArrangementState(channel)
@@ -2141,6 +2156,7 @@ export function useChannels() {
     updateRandomChordProbability,
     cycleStep,
     updateVelocity,
+    randomizeVelocities,
     clearNotes,
     createVariation,
     createGlobalVariation,
