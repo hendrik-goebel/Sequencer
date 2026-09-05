@@ -180,20 +180,6 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         <label>Quantisation <StepperControl :value="visualChannel.quantisation" :values="[1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 32, 64]" @update:value="$emit('update-quant', +$event)" /></label>
         <label>Loop length <span class="value-input"><input type="number" :value="visualChannel.loopLength" @input="$emit('update-loop-length', +$event.target.value)" min="1" max="2048" /><small>STEPS</small></span></label>
         <label>Note length <StepperControl :value="visualChannel.noteLength" :values="NOTE_LENGTH_OPTIONS" @update:value="$emit('update-noteLength', +$event)" /></label>
-        <div class="octave-control">
-          <span>Octave</span>
-          <div class="octave-options" role="group" aria-label="Editor octaves">
-            <label v-for="octave in ARPEGGIO_OCTAVES" :key="octave" class="octave-option">
-              <input
-                type="checkbox"
-                :checked="visualChannel.selectedOctaves?.includes(octave)"
-                :aria-label="`Show octave ${octave}`"
-                @change="toggleEditorOctave(octave, $event)"
-              />
-              C{{ octave }}
-            </label>
-          </div>
-        </div>
       </div>
       <div class="control-section material-section">
         <h3>MATERIAL</h3>
@@ -206,6 +192,20 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         <label>Amount
           <StepperControl :value="visualChannel.materialAmount ? visualChannel.materialAmount : '-'" :values="['-', 1, 2, 3, 4, 5, 6, 7]" @update:value="$emit('update-material-amount', $event === '-' ? 0 : +$event)" />
         </label>
+        <div class="octave-control">
+          <span class="octave-label">Octave</span>
+          <div class="octave-options" role="group" aria-label="Editor octaves">
+            <label v-for="octave in ARPEGGIO_OCTAVES" :key="octave" class="octave-option">
+              <input
+                type="checkbox"
+                :checked="visualChannel.selectedOctaves?.includes(octave)"
+                :aria-label="`Show octave ${octave}`"
+                @change="toggleEditorOctave(octave, $event)"
+              />
+              C{{ octave }}
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -348,17 +348,17 @@ h2 { color: #effaff; font-size: 1.15rem; letter-spacing: .08em; }
 .control-section { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--line); }
 .control-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .sequence-section { grid-template-columns: minmax(5.5rem, auto) repeat(6, minmax(0, 1fr)); align-items: end; }
-.material-section { grid-template-columns: repeat(2, minmax(5.5rem, 10rem)); align-items: end; }
+.material-section { grid-template-columns: repeat(2, minmax(5.5rem, 10rem)) minmax(0, 1fr); align-items: end; }
 .control-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .control-section h3 { grid-column: 1 / -1; color: var(--teal); }
-.sequence-section h3 { grid-column: auto; }
 .control-section label { display: grid; gap: .38rem; }
 .control-column h3 { grid-column: 1 / -1; color: var(--teal); }
 .control-column label { display: grid; gap: .38rem; }
 select, input { min-width: 0; box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 4px; padding: .45rem .5rem; background: var(--bg-control); color: #e7f6fb; font: 600 .75rem ui-monospace, monospace; outline: none; }
 select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(104, 216, 195, .12); }
 .octave-control { display: grid; gap: .38rem; }
-.octave-options { display: flex; flex-wrap: wrap; gap: .35rem .6rem; }
+.octave-label { color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .13em; }
+.octave-options { display: flex; flex-wrap: nowrap; gap: .35rem .6rem; }
 .octave-option { display: flex !important; align-items: center; gap: .25rem; color: #e7f6fb !important; cursor: pointer; letter-spacing: .04em !important; white-space: nowrap; }
 .octave-option input { width: .85rem; height: .85rem; margin: 0; padding: 0; accent-color: var(--teal); cursor: pointer; }
 .value-input { display: flex; align-items: center; border-bottom: 1px solid var(--line-strong); }
