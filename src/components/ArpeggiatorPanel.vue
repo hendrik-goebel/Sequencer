@@ -204,9 +204,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           </select>
         </label>
         <label>Amount
-          <select :value="visualChannel.materialAmount ?? 7" @change="$emit('update-material-amount', +($event.target as HTMLSelectElement).value)">
-            <option v-for="amount in 7" :key="amount" :value="amount">{{ amount }} notes</option>
-          </select>
+          <StepperControl :value="visualChannel.materialAmount ? visualChannel.materialAmount : '-'" :values="['-', 1, 2, 3, 4, 5, 6, 7]" @update:value="$emit('update-material-amount', $event === '-' ? 0 : +$event)" />
         </label>
       </div>
     </div>
@@ -215,7 +213,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       <button type="button" class="microtones-button" :class="{ active: visualChannel.microtonesEnabled }" :aria-pressed="visualChannel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
       <button type="button" class="reduce-button" :class="{ active: visualChannel.reduceNotes }" :aria-pressed="visualChannel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
       <div class="note-grid-scroll">
-        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :material-pitch-classes="visualChannel.materialPitchClasses" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :material-amount="visualChannel.materialAmount" :material-pitch-classes="visualChannel.materialPitchClasses" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
       </div>
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>
@@ -350,7 +348,7 @@ h2 { color: #effaff; font-size: 1.15rem; letter-spacing: .08em; }
 .control-section { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--line); }
 .control-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .sequence-section { grid-template-columns: minmax(5.5rem, auto) repeat(6, minmax(0, 1fr)); align-items: end; }
-.material-section { grid-template-columns: minmax(5.5rem, 10rem); align-items: end; }
+.material-section { grid-template-columns: repeat(2, minmax(5.5rem, 10rem)); align-items: end; }
 .control-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .control-section h3 { grid-column: 1 / -1; color: var(--teal); }
 .sequence-section h3 { grid-column: auto; }

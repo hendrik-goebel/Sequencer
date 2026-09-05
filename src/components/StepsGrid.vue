@@ -19,7 +19,7 @@ import { computed } from 'vue'
 import { KEYS, NO_KEY, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
 import { isSustainedStep, StepValue, stepNotes } from '../models/arpeggiator'
 
-const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, materialPitchClasses?: number[], microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
+const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, materialAmount?: number, materialPitchClasses?: number[], microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
 
 const emit = defineEmits<{
   (event: 'toggle-tone-material', note: number): void
@@ -31,7 +31,9 @@ const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot
 const keyPitchClasses = computed(() => keyPitchClass.value === null || props.keyRoot === NO_KEY
   ? new Set<number>()
   : new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
-const materialPitchClasses = computed(() => props.materialPitchClasses
+const materialPitchClasses = computed(() => props.materialAmount === 0
+  ? keyPitchClasses.value
+  : props.materialPitchClasses
   ? new Set(props.materialPitchClasses)
   : keyPitchClasses.value)
 

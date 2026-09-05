@@ -328,7 +328,8 @@ export function useChannels() {
     if (key === NO_KEY || keyPitchClass === undefined) return []
 
     const scalePitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
-    const count = Math.max(1, Math.min(scalePitchClasses.length, Math.floor(amount)))
+    const count = Math.max(0, Math.min(scalePitchClasses.length, Math.floor(amount)))
+    if (count === 0) return scalePitchClasses
     const shuffled = scalePitchClasses.slice()
     for (let index = shuffled.length - 1; index > 0; index -= 1) {
       const randomIndex = Math.floor(Math.random() * (index + 1))
@@ -445,10 +446,19 @@ export function useChannels() {
       const isExcluded = arrangementState.excludedNotes?.includes(note) ?? false
       const isAdditional = arrangementState.additionalNotes?.includes(note) ?? false
 
-      if (isExcluded) {
-        arrangementState.excludedNotes = (arrangementState.excludedNotes ?? []).filter((candidate: number) => !octaveNotes.includes(candidate))
-      } else if (isKeyNote) {
-        arrangementState.excludedNotes = [...new Set([...(arrangementState.excludedNotes ?? []), ...octaveNotes])].sort((a, b) => a - b)
+      if (isKeyNote) {
+        const materialPitchClasses = new Set(
+          arrangementState.materialPitchClasses ??
+          MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+        )
+        if (materialPitchClasses.has(pitchOffset) && !isExcluded) materialPitchClasses.delete(pitchOffset)
+        else {
+          materialPitchClasses.add(pitchOffset)
+          arrangementState.excludedNotes = (arrangementState.excludedNotes ?? [])
+            .filter((candidate: number) => !octaveNotes.includes(candidate))
+        }
+        arrangementState.materialPitchClasses = [...materialPitchClasses].sort((a, b) => a - b)
+        arrangementState.materialAmount = Math.max(1, arrangementState.materialPitchClasses.length)
       } else if (isAdditional) {
         arrangementState.additionalNotes = (arrangementState.additionalNotes ?? []).filter((candidate: number) => !octaveNotes.includes(candidate))
       } else {
@@ -467,10 +477,20 @@ export function useChannels() {
     const isExcluded = channel.excludedNotes.includes(note)
     const isAdditional = channel.additionalNotes.includes(note)
 
-    if (isExcluded) {
-      channel.excludedNotes = channel.excludedNotes.filter(candidate => !octaveNotes.includes(candidate))
-    } else if (isKeyNote) {
-      channel.excludedNotes = [...new Set([...channel.excludedNotes, ...octaveNotes])].sort((a, b) => a - b)
+    if (isKeyNote) {
+      const keyPitchClass = getKeyPitchClass(channel)
+      if (keyPitchClass === null) return
+      const materialPitchClasses = new Set(
+        channel.materialPitchClasses ??
+        MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+      )
+      if (materialPitchClasses.has(pitchOffset) && !isExcluded) materialPitchClasses.delete(pitchOffset)
+      else {
+        materialPitchClasses.add(pitchOffset)
+        channel.excludedNotes = channel.excludedNotes.filter(candidate => !octaveNotes.includes(candidate))
+      }
+      channel.materialPitchClasses = [...materialPitchClasses].sort((a, b) => a - b)
+      channel.materialAmount = Math.max(1, channel.materialPitchClasses.length)
     } else if (isAdditional) {
       channel.additionalNotes = channel.additionalNotes.filter(candidate => !octaveNotes.includes(candidate))
     } else {
@@ -1411,7 +1431,7 @@ export function useChannels() {
 
   function updateMaterialAmount(amount: number) {
     const channel = currentChannel.value
-    const materialAmount = Math.max(1, Math.min(MAJOR_SCALE_OFFSETS.length, Math.floor(amount)))
+    const materialAmount = Math.max(0, Math.min(MAJOR_SCALE_OFFSETS.length, Math.floor(amount)))
     const arrangementState = getEditableArrangementState(channel)
     if (arrangementState) {
       arrangementState.materialAmount = materialAmount
@@ -1727,7 +1747,7 @@ export function useChannels() {
       Array.isArray(value.notes) && value.notes.every(note => typeof note === 'number' && Number.isFinite(note)) &&
       (!('additionalNotes' in value) || (Array.isArray(value.additionalNotes) && value.additionalNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
       (!('excludedNotes' in value) || (Array.isArray(value.excludedNotes) && value.excludedNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
-      (!('materialAmount' in value) || (typeof value.materialAmount === 'number' && Number.isInteger(value.materialAmount) && value.materialAmount >= 1 && value.materialAmount <= MAJOR_SCALE_OFFSETS.length)) &&
+      (!('materialAmount' in value) || (typeof value.materialAmount === 'number' && Number.isInteger(value.materialAmount) && value.materialAmount >= 0 && value.materialAmount <= MAJOR_SCALE_OFFSETS.length)) &&
       (!('materialPitchClasses' in value) || (Array.isArray(value.materialPitchClasses) && value.materialPitchClasses.every(pitchClass => typeof pitchClass === 'number' && Number.isInteger(pitchClass) && pitchClass >= 0 && pitchClass < 12))) &&
       Array.isArray(value.steps) && value.steps.every(isStepValue) &&
       (!('velocities' in value) || (Array.isArray(value.velocities) && value.velocities.every(velocity => typeof velocity === 'number' && Number.isFinite(velocity) && velocity >= 0 && velocity <= 127))) &&
