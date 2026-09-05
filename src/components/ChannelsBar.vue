@@ -11,12 +11,6 @@
       <button @click.stop="$emit('toggle-mute', i)" :class="{muted: ch.muted}">
         {{ ch.muted ? 'Unmute' : 'Mute' }}
       </button>
-      <label class="key-control">Key
-        <select :value="ch.key" @click.stop @change.stop="$emit('update-key', i, $event.target.value)">
-          <option :value="NO_KEY">{{ NO_KEY }}</option>
-          <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
-        </select>
-      </label>
       <label class="midi-channel-control">MIDI channel
         <span><input type="number" :value="ch.midiChannel" min="1" max="16" @click.stop @input.stop="$emit('update-midi-channel', i, +$event.target.value)" /><small>CH</small></span>
       </label>
@@ -28,8 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import { KEYS, NO_KEY } from '../config'
-
 const emit = defineEmits<{
   (event: 'select', index: number): void
   (event: 'copy-channel', sourceIndex: number, targetIndex: number): void
@@ -100,29 +92,6 @@ function dropOnChannel(targetIndex: number, event: DragEvent) {
   background: var(--coral-deep);
   color: var(--coral-soft);
 }
-
-.key-control {
-  display: grid;
-  gap: .25rem;
-  padding: .45rem .55rem .55rem;
-  border-top: 1px solid var(--line);
-  color: var(--text-dim);
-  font-size: .5rem;
-  font-weight: 800;
-  letter-spacing: .1em;
-}
-.key-control select {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  border-bottom: 1px solid var(--line-strong);
-  border-radius: 0;
-  background: transparent;
-  color: var(--text);
-  font: 700 .75rem ui-monospace, monospace;
-  outline: 0;
-}
-.key-control select:focus { border-color: var(--teal); }
 
 .tempo-control {
   display: grid;

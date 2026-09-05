@@ -23,7 +23,7 @@
 
 
     <section class="module channel-module">
-      <ChannelsBar :channels="channels" :currentIndex="currentIndex" @select="selectChannel" @copy-channel="copyChannel" @toggle="toggleChannelPlay" @toggle-mute="toggleMute" @update-key="updateChannelKey" @update-midi-channel="updateMidiChannel" @update-bpm="updateChannelBpm" />
+      <ChannelsBar :channels="channels" :currentIndex="currentIndex" @select="selectChannel" @copy-channel="copyChannel" @toggle="toggleChannelPlay" @toggle-mute="toggleMute" @update-midi-channel="updateMidiChannel" @update-bpm="updateChannelBpm" />
     </section>
 
 
@@ -39,7 +39,7 @@
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       :selected-arrangement-row-index="currentSelectedArrangementSlot.rowIndex"
       :selected-arrangement-slot-index="currentSelectedArrangementSlot.slotIndex"
-      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi"
+      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @toggle-play="togglePlay" @enable-midi="enableMidi" @update-key="updateChannelKey(currentIndex, $event)" @update-material-amount="updateMaterialAmount"
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="toggleGlobalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
@@ -176,6 +176,7 @@ const {
   updateChannelBpm,
   updatePattern,
   updateChannelKey,
+  updateMaterialAmount,
   updateNoteLength,
   updateLoopLength,
   updateArpeggioLength,

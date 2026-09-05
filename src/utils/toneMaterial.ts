@@ -6,6 +6,7 @@ export interface ToneMaterialSource {
   microtonesEnabled: boolean
   additionalNotes: number[]
   excludedNotes: number[]
+  materialPitchClasses?: number[]
 }
 
 export function getToneMaterials(channel: ToneMaterialSource, octaves = [channel.octave]) {
@@ -17,7 +18,11 @@ export function getToneMaterials(channel: ToneMaterialSource, octaves = [channel
   const keyPitches = activeOctaves.flatMap(octave => {
     if (channel.key === NO_KEY || keyPitchClass === undefined) return []
     const octaveBase = 12 * (octave + 1)
-    return MAJOR_SCALE_OFFSETS.map(offset => octaveBase + ((keyPitchClass + offset) % 12))
+    const materialPitchClasses = channel.materialPitchClasses
+    return MAJOR_SCALE_OFFSETS
+      .map(offset => (keyPitchClass + offset) % 12)
+      .filter(pitchClass => !materialPitchClasses || materialPitchClasses.includes(pitchClass))
+      .map(pitchClass => octaveBase + pitchClass)
   })
   const additionalNotes = channel.additionalNotes.filter(note =>
     activeOctaves.includes(Math.floor(note / 12) - 1))

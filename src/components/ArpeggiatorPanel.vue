@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, MICROTONAL_STEP, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, KEYS, MICROTONAL_STEP, NO_KEY, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -37,6 +37,8 @@ const emit = defineEmits<{
   (event: 'update-velocity', payload: { index: number, value: number }): void
   (event: 'toggle-play'): void
   (event: 'enable-midi'): void
+  (event: 'update-key', value: string): void
+  (event: 'update-material-amount', value: number): void
   (event: 'update-pattern', value: any): void
   (event: 'update-noteLength', value: number): void
   (event: 'update-octaves', value: number[]): void
@@ -193,13 +195,27 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           </div>
         </div>
       </div>
+      <div class="control-section material-section">
+        <h3>MATERIAL</h3>
+        <label>Key
+          <select :value="visualChannel.key" @change="$emit('update-key', ($event.target as HTMLSelectElement).value)">
+            <option :value="NO_KEY">{{ NO_KEY }}</option>
+            <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
+          </select>
+        </label>
+        <label>Amount
+          <select :value="visualChannel.materialAmount ?? 7" @change="$emit('update-material-amount', +($event.target as HTMLSelectElement).value)">
+            <option v-for="amount in 7" :key="amount" :value="amount">{{ amount }} notes</option>
+          </select>
+        </label>
+      </div>
     </div>
 
     <div class="sequencer">
       <button type="button" class="microtones-button" :class="{ active: visualChannel.microtonesEnabled }" :aria-pressed="visualChannel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
       <button type="button" class="reduce-button" :class="{ active: visualChannel.reduceNotes }" :aria-pressed="visualChannel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
       <div class="note-grid-scroll">
-        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :material-pitch-classes="visualChannel.materialPitchClasses" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
       </div>
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>
@@ -334,6 +350,7 @@ h2 { color: #effaff; font-size: 1.15rem; letter-spacing: .08em; }
 .control-section { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--line); }
 .control-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .sequence-section { grid-template-columns: minmax(5.5rem, auto) repeat(6, minmax(0, 1fr)); align-items: end; }
+.material-section { grid-template-columns: minmax(5.5rem, 10rem); align-items: end; }
 .control-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; padding: 1rem; background: var(--bg-raised); }
 .control-section h3 { grid-column: 1 / -1; color: var(--teal); }
 .sequence-section h3 { grid-column: auto; }

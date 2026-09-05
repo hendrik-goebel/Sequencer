@@ -6,7 +6,7 @@
     </div>
 
     <div v-for="note in notes" :key="note" class="row" :class="{ 'in-key': isKeyNote(note) && !isExcludedNote(note), 'additional-note': isAdditionalNote(note), 'excluded-note': isExcludedNote(note), 'microtone-note': isMicrotoneNote(note) }">
-      <button type="button" class="note-col" :class="{ 'key-note': isKeyNote(note), selected: isSelectedNote(note) }" @click="$emit('toggle-tone-material', note)">{{ noteName(note) }}</button>
+      <button type="button" class="note-col" :class="{ 'key-note': isSelectedNote(note), selected: isSelectedNote(note) }" @click="$emit('toggle-tone-material', note)">{{ noteName(note) }}</button>
       <div v-for="stepIndex in stepCountArray" :key="stepIndex-1" class="step-col"
            :class="{active: isStepActive(stepIndex - 1, note), sustained: isSustainedSource(stepIndex - 1, note), 'sustain-continuation': isSustainedContinuation(stepIndex - 1, note), 'tone-material': isSelectedNote(note), playing: props.playStep === (stepIndex-1)}"
            @click="toggleStep(stepIndex - 1, note, $event)"></div>
@@ -19,7 +19,7 @@ import { computed } from 'vue'
 import { KEYS, NO_KEY, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
 import { isSustainedStep, StepValue, stepNotes } from '../models/arpeggiator'
 
-const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
+const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, materialPitchClasses?: number[], microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
 
 const emit = defineEmits<{
   (event: 'toggle-tone-material', note: number): void
@@ -31,6 +31,9 @@ const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot
 const keyPitchClasses = computed(() => keyPitchClass.value === null || props.keyRoot === NO_KEY
   ? new Set<number>()
   : new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
+const materialPitchClasses = computed(() => props.materialPitchClasses
+  ? new Set(props.materialPitchClasses)
+  : keyPitchClasses.value)
 
 const stepCountArray = computed(() => {
   const cnt = (props.stepCount && props.stepCount > 0) ? props.stepCount : STEP_COUNT
@@ -61,7 +64,10 @@ function isExcludedNote(note: number) {
 }
 
 function isSelectedNote(note: number) {
-  return !isExcludedNote(note) && (isKeyNote(note) || isAdditionalNote(note))
+  return !isExcludedNote(note) && (
+    (Number.isInteger(note) && materialPitchClasses.value.has((note % 12 + 12) % 12)) ||
+    isAdditionalNote(note)
+  )
 }
 
 function isStepActive(step: number, note: number) {

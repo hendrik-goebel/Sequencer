@@ -1,7 +1,7 @@
 import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
 import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
@@ -19,6 +19,8 @@ export interface Channel {
   notes: number[]
   additionalNotes: number[]
   excludedNotes: number[]
+  materialAmount: number
+  materialPitchClasses: number[]
   reduceNotes: boolean
   randomNoteProbability: number
   randomTimingVariation: number
@@ -57,6 +59,8 @@ export interface StoredArpeggiatorState {
   notes: number[]
   additionalNotes?: number[]
   excludedNotes?: number[]
+  materialAmount?: number
+  materialPitchClasses?: number[]
   velocities?: number[]
   steps: StepValue[]
   base: number
@@ -72,6 +76,13 @@ export interface StoredArpeggiatorState {
 
 export function createChannel(index: number, selectedOutputId: Ref<string | null>, log: Ref<string[]>, onLoop?: (channel: Channel) => void) : Channel {
   const arpeggiator = markRaw(createArpeggiator())
+  const materialAmount = Math.floor(Math.random() * MAJOR_SCALE_OFFSETS.length) + 1
+  const materialPitchClasses = MAJOR_SCALE_OFFSETS.slice()
+  for (let pitchIndex = materialPitchClasses.length - 1; pitchIndex > 0; pitchIndex -= 1) {
+    const randomIndex = Math.floor(Math.random() * (pitchIndex + 1))
+    ;[materialPitchClasses[pitchIndex], materialPitchClasses[randomIndex]] =
+      [materialPitchClasses[randomIndex], materialPitchClasses[pitchIndex]]
+  }
   const channel = reactive({
     id: index,
     name: `Ch ${index+1}`,
@@ -84,6 +95,8 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     notes: DEFAULT_NOTES.slice() as number[],
     additionalNotes: [] as number[],
     excludedNotes: [] as number[],
+    materialAmount,
+    materialPitchClasses: materialPitchClasses.slice(0, materialAmount).sort((a, b) => a - b),
     reduceNotes: false,
     randomNoteProbability: 0,
     randomTimingVariation: 0,

@@ -323,6 +323,20 @@ export function useChannels() {
     return KEYS.find(key => key.name === channel.key)?.pitchClass ?? null
   }
 
+  function createMaterialPitchClasses(key: CircleOfFifthsKey, amount: number) {
+    const keyPitchClass = KEYS.find(candidate => candidate.name === key)?.pitchClass
+    if (key === NO_KEY || keyPitchClass === undefined) return []
+
+    const scalePitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+    const count = Math.max(1, Math.min(scalePitchClasses.length, Math.floor(amount)))
+    const shuffled = scalePitchClasses.slice()
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1))
+      ;[shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]]
+    }
+    return shuffled.slice(0, count).sort((a, b) => a - b)
+  }
+
   function isKeyTone(channel: typeof channels[number], note: number) {
     const keyPitchClass = getKeyPitchClass(channel)
     if (keyPitchClass === null || channel.key === NO_KEY) return false
@@ -344,6 +358,7 @@ export function useChannels() {
     globalKey.value = key as CircleOfFifthsKey
     channels.forEach(channel => {
       channel.key = globalKey.value
+      channel.materialPitchClasses = createMaterialPitchClasses(channel.key, channel.materialAmount)
       if (globalKey.value === NO_KEY) channel.additionalNotes = []
     })
   }
@@ -467,30 +482,29 @@ export function useChannels() {
 
   function shiftCurrentToneMaterial(direction: 1 | -1) {
     const channel = currentChannel.value
-    const keyPitchClass = getKeyPitchClass(channel)
-    if (keyPitchClass === null || channel.key === NO_KEY) return
+    const arrangementState = getEditableArrangementState(channel)
+    const material = arrangementState ?? channel
+    const keyPitchClass = KEYS.find(key => key.name === material.key)?.pitchClass
+    if (material.key === NO_KEY || keyPitchClass === undefined) return
 
-    const activeOctaves = channel.selectedOctaves.length
-      ? channel.selectedOctaves
-      : [channel.octave]
-    const keyNotes = activeOctaves
-      .flatMap(octave => MAJOR_SCALE_OFFSETS.map(offset =>
-        12 * (octave + 1) + ((keyPitchClass + offset) % 12)))
+    const keyPitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+    const activePitchClasses = [...new Set(
+      material.materialPitchClasses ?? keyPitchClasses
+    )].filter(pitchClass => keyPitchClasses.includes(pitchClass))
+    if (!activePitchClasses.length) return
+
+    material.materialPitchClasses = activePitchClasses
+      .map(pitchClass => keyPitchClasses[
+        (keyPitchClasses.indexOf(pitchClass) + direction + keyPitchClasses.length) % keyPitchClasses.length
+      ])
       .sort((a, b) => a - b)
-    const isInActiveOctave = (note: number) =>
-      activeOctaves.includes(Math.floor(note / 12) - 1)
-    const activeNotes = [...new Set(getToneMaterials(channel, activeOctaves))]
-      .filter(isInActiveOctave)
-    const shiftedNotes = activeNotes.map(note => {
-      const nextNote = direction > 0
-        ? keyNotes.find(candidate => candidate > note)
-        : [...keyNotes].reverse().find(candidate => candidate < note)
-      return nextNote ?? (direction > 0 ? keyNotes[0] : keyNotes[keyNotes.length - 1])
-    })
 
-    activeNotes.forEach(note => toggleToneMaterialSelection(channel, note, false))
-    shiftedNotes.forEach(note => toggleToneMaterialSelection(channel, note, true))
-    channel.toneMaterialCursor = shiftedNotes[shiftedNotes.length - 1] ?? null
+    if (arrangementState) return
+    const activeOctave = channel.selectedOctaves[0] ?? channel.octave
+    channel.toneMaterialCursor = 12 * (activeOctave + 1) +
+      channel.materialPitchClasses[channel.materialPitchClasses.length - 1]
+    persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
 
   function toggleToneMaterialSelection(
@@ -1377,8 +1391,37 @@ export function useChannels() {
   function updateChannelKey(index: number, key: string) {
     const channel = channels[index]
     if (!channel || (key !== NO_KEY && !KEYS.some(candidate => candidate.name === key))) return
-    channel.key = key as CircleOfFifthsKey
+    const materialKey = key as CircleOfFifthsKey
+    const arrangementState = channel === currentChannel.value ? getEditableArrangementState(channel) : null
+    if (arrangementState) {
+      arrangementState.key = materialKey
+      arrangementState.materialPitchClasses = createMaterialPitchClasses(
+        materialKey,
+        arrangementState.materialAmount ?? MAJOR_SCALE_OFFSETS.length
+      )
+      if (materialKey === NO_KEY) arrangementState.additionalNotes = []
+      return
+    }
+    channel.key = materialKey
+    channel.materialPitchClasses = createMaterialPitchClasses(channel.key, channel.materialAmount)
     if (channel.key === NO_KEY) channel.additionalNotes = []
+    persistArrangementSlotState(channel)
+    if (channel === currentChannel.value) markCurrentStoredStateDirty()
+  }
+
+  function updateMaterialAmount(amount: number) {
+    const channel = currentChannel.value
+    const materialAmount = Math.max(1, Math.min(MAJOR_SCALE_OFFSETS.length, Math.floor(amount)))
+    const arrangementState = getEditableArrangementState(channel)
+    if (arrangementState) {
+      arrangementState.materialAmount = materialAmount
+      arrangementState.materialPitchClasses = createMaterialPitchClasses(arrangementState.key, materialAmount)
+      return
+    }
+    channel.materialAmount = materialAmount
+    channel.materialPitchClasses = createMaterialPitchClasses(channel.key, materialAmount)
+    persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
   }
   function updateNoteLength(length:number){
     const channel = currentChannel.value
@@ -1598,6 +1641,8 @@ export function useChannels() {
       notes: channel.notes.slice(),
       additionalNotes: channel.additionalNotes.slice(),
       excludedNotes: channel.excludedNotes.slice(),
+      materialAmount: channel.materialAmount,
+      materialPitchClasses: channel.materialPitchClasses.slice(),
       steps: channel.steps.map(cloneStep),
       velocities: channel.velocities.slice(),
       base: channel.base,
@@ -1618,6 +1663,7 @@ export function useChannels() {
       notes: state.notes.slice(),
       additionalNotes: state.additionalNotes?.slice(),
       excludedNotes: state.excludedNotes?.slice(),
+      materialPitchClasses: state.materialPitchClasses?.slice(),
       steps: state.steps.map(cloneStep),
       velocities: state.velocities?.slice()
     }
@@ -1681,6 +1727,8 @@ export function useChannels() {
       Array.isArray(value.notes) && value.notes.every(note => typeof note === 'number' && Number.isFinite(note)) &&
       (!('additionalNotes' in value) || (Array.isArray(value.additionalNotes) && value.additionalNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
       (!('excludedNotes' in value) || (Array.isArray(value.excludedNotes) && value.excludedNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
+      (!('materialAmount' in value) || (typeof value.materialAmount === 'number' && Number.isInteger(value.materialAmount) && value.materialAmount >= 1 && value.materialAmount <= MAJOR_SCALE_OFFSETS.length)) &&
+      (!('materialPitchClasses' in value) || (Array.isArray(value.materialPitchClasses) && value.materialPitchClasses.every(pitchClass => typeof pitchClass === 'number' && Number.isInteger(pitchClass) && pitchClass >= 0 && pitchClass < 12))) &&
       Array.isArray(value.steps) && value.steps.every(isStepValue) &&
       (!('velocities' in value) || (Array.isArray(value.velocities) && value.velocities.every(velocity => typeof velocity === 'number' && Number.isFinite(velocity) && velocity >= 0 && velocity <= 127))) &&
       typeof value.base === 'number' && Number.isFinite(value.base) &&
@@ -1759,6 +1807,9 @@ export function useChannels() {
     channel.arpeggioLength = state.arpeggioLength
     channel.quantisation = state.quantisation
     channel.key = state.key
+    channel.materialAmount = state.materialAmount ?? MAJOR_SCALE_OFFSETS.length
+    channel.materialPitchClasses = state.materialPitchClasses?.slice() ??
+      createMaterialPitchClasses(channel.key, channel.materialAmount)
     channel.microtonesEnabled = state.microtonesEnabled ?? false
     channel.followArrangementView = channel.followArrangementView ?? false
     if (shouldApplyPlaybackMode) channel.playbackMode = state.playbackMode ?? 'state'
@@ -1922,6 +1973,8 @@ export function useChannels() {
     target.notes = source.notes.slice()
     target.additionalNotes = source.additionalNotes.slice()
     target.excludedNotes = source.excludedNotes.slice()
+    target.materialAmount = source.materialAmount
+    target.materialPitchClasses = source.materialPitchClasses.slice()
     target.reduceNotes = source.reduceNotes
     target.randomNoteProbability = source.randomNoteProbability
     target.randomTimingVariation = source.randomTimingVariation
@@ -2101,6 +2154,7 @@ export function useChannels() {
     updateMidiChannel,
     updatePattern,
     updateChannelKey,
+    updateMaterialAmount,
     updateNoteLength,
     updateArpeggioLength,
     updateQuantisation,
