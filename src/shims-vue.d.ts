@@ -9,7 +9,7 @@ declare namespace WebMidi {
     id: string
     name?: string
     manufacturer?: string
-    send(data: number[]): void
+    send(data: number[], timestamp?: number): void
   }
 
   interface MIDIInput {

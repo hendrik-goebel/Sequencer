@@ -5,6 +5,8 @@ const MIDI_START = 0xfa
 const MIDI_CONTINUE = 0xfb
 const MIDI_STOP = 0xfc
 const CLOCKS_PER_BEAT = 24
+const CLOCK_LOOK_AHEAD_MS = 50
+const CLOCK_SCHEDULER_INTERVAL_MS = 10
 
 export type MidiClockCallbacks = {
   onTempo?: (bpm: number) => void
@@ -24,16 +26,22 @@ export function createMidiClockOutput(initialBpm: number) {
     timer = null
   }
 
-  function schedulePulse() {
+  function schedulePulses() {
     if (!running || !output) return
     const interval = 60000 / (bpm * CLOCKS_PER_BEAT)
-    nextPulseAt += interval
-    const delay = Math.max(0, nextPulseAt - performance.now())
-    timer = setTimeout(() => {
-      if (!running || !output) return
-      output.send([MIDI_CLOCK])
-      schedulePulse()
-    }, delay)
+    const now = performance.now()
+
+    // Do not send a burst of stale ticks after the browser has been paused.
+    while (nextPulseAt < now) nextPulseAt += interval
+
+    // MIDIOutput timestamps are handled by the browser's MIDI scheduler, avoiding
+    // main-thread timer jitter at the actual output time.
+    while (nextPulseAt <= now + CLOCK_LOOK_AHEAD_MS) {
+      output.send([MIDI_CLOCK], nextPulseAt)
+      nextPulseAt += interval
+    }
+
+    timer = setTimeout(schedulePulses, CLOCK_SCHEDULER_INTERVAL_MS)
   }
 
   function setOutput(nextOutput: WebMidi.MIDIOutput | null) {
@@ -50,8 +58,8 @@ export function createMidiClockOutput(initialBpm: number) {
     if (running || !output) return
     running = true
     output.send([MIDI_START])
-    nextPulseAt = performance.now()
-    schedulePulse()
+    nextPulseAt = performance.now() + 60000 / (bpm * CLOCKS_PER_BEAT)
+    schedulePulses()
   }
 
   function stop() {
