@@ -5,8 +5,9 @@ const MIDI_START = 0xfa
 const MIDI_CONTINUE = 0xfb
 const MIDI_STOP = 0xfc
 const CLOCKS_PER_BEAT = 24
-const CLOCK_LOOK_AHEAD_MS = 50
-const CLOCK_SCHEDULER_INTERVAL_MS = 10
+const CLOCK_LOOK_AHEAD_MS = 250
+const CLOCK_SCHEDULER_INTERVAL_MS = 25
+const CLOCK_START_DELAY_MS = 10
 
 export type MidiClockCallbacks = {
   onTempo?: (bpm: number) => void
@@ -24,6 +25,10 @@ export function createMidiClockOutput(initialBpm: number) {
   function clearTimer() {
     if (timer !== null) clearTimeout(timer)
     timer = null
+  }
+
+  function clearScheduledEvents() {
+    output?.clear()
   }
 
   function schedulePulses() {
@@ -52,18 +57,26 @@ export function createMidiClockOutput(initialBpm: number) {
   function setBpm(nextBpm: number) {
     if (!Number.isFinite(nextBpm) || nextBpm <= 0) return
     bpm = nextBpm
+    if (!running) return
+
+    clearTimer()
+    clearScheduledEvents()
+    nextPulseAt = performance.now() + 60000 / (bpm * CLOCKS_PER_BEAT)
+    schedulePulses()
   }
 
   function start() {
     if (running || !output) return
     running = true
-    output.send([MIDI_START])
-    nextPulseAt = performance.now() + 60000 / (bpm * CLOCKS_PER_BEAT)
+    const startAt = performance.now() + CLOCK_START_DELAY_MS
+    output.send([MIDI_START], startAt)
+    nextPulseAt = startAt
     schedulePulses()
   }
 
   function stop() {
     clearTimer()
+    clearScheduledEvents()
     if (running && output) output.send([MIDI_STOP])
     running = false
   }
