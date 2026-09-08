@@ -1684,6 +1684,7 @@ export function useChannels() {
       velocities: channel.velocities.slice(),
       base: channel.base,
       octave: channel.octave,
+      selectedOctaves: channel.selectedOctaves.slice(),
       loopLength: channel.loopLength,
       arpeggioLength: channel.arpeggioLength,
       quantisation: channel.quantisation,
@@ -1701,6 +1702,7 @@ export function useChannels() {
       additionalNotes: state.additionalNotes?.slice(),
       excludedNotes: state.excludedNotes?.slice(),
       materialPitchClasses: state.materialPitchClasses?.slice(),
+      selectedOctaves: state.selectedOctaves?.slice(),
       steps: state.steps.map(cloneStep),
       velocities: state.velocities?.slice()
     }
@@ -1766,6 +1768,7 @@ export function useChannels() {
       (!('excludedNotes' in value) || (Array.isArray(value.excludedNotes) && value.excludedNotes.every(note => typeof note === 'number' && Number.isFinite(note)))) &&
       (!('materialAmount' in value) || (typeof value.materialAmount === 'number' && Number.isInteger(value.materialAmount) && value.materialAmount >= 0 && value.materialAmount <= MAJOR_SCALE_OFFSETS.length)) &&
       (!('materialPitchClasses' in value) || (Array.isArray(value.materialPitchClasses) && value.materialPitchClasses.every(pitchClass => typeof pitchClass === 'number' && Number.isInteger(pitchClass) && pitchClass >= 0 && pitchClass < 12))) &&
+      (!('selectedOctaves' in value) || (Array.isArray(value.selectedOctaves) && value.selectedOctaves.every(octave => ARPEGGIO_OCTAVES.includes(octave)))) &&
       Array.isArray(value.steps) && value.steps.every(isStepValue) &&
       (!('velocities' in value) || (Array.isArray(value.velocities) && value.velocities.every(velocity => typeof velocity === 'number' && Number.isFinite(velocity) && velocity >= 0 && velocity <= 127))) &&
       typeof value.base === 'number' && Number.isFinite(value.base) &&
@@ -1840,6 +1843,7 @@ export function useChannels() {
     channel.velocities = state.velocities?.slice() ?? channel.velocities.map(() => MIDI.VELOCITY_MAX)
     channel.base = state.base
     channel.octave = state.octave
+    channel.selectedOctaves = state.selectedOctaves?.slice() ?? [state.octave]
     channel.loopLength = state.loopLength
     channel.arpeggioLength = state.arpeggioLength
     channel.quantisation = state.quantisation

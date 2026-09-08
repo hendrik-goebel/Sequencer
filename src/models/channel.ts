@@ -65,6 +65,7 @@ export interface StoredArpeggiatorState {
   steps: StepValue[]
   base: number
   octave: number
+  selectedOctaves?: number[]
   loopLength: number
   arpeggioLength: number
   quantisation: number

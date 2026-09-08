@@ -88,6 +88,7 @@ const visualChannel = computed(() => {
     ...selectedState,
     additionalNotes: selectedState.additionalNotes ?? [],
     excludedNotes: selectedState.excludedNotes ?? [],
+    selectedOctaves: selectedState.selectedOctaves ?? [selectedState.octave],
     velocities: selectedState.velocities ?? props.channel.velocities,
     playStep: null,
     playbackMode: props.channel.playbackMode,

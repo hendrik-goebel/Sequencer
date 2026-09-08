@@ -24,6 +24,6 @@ Notes:
 - To route MIDI to other apps, use a virtual MIDI port (IAC on macOS, loopMIDI on Windows).
 - Keyboard shortcuts: `1`-`8` select a channel, Left/Right select the previous/next channel,
   `M` mutes the current channel, Command+`M` mutes/unmutes all channels, Space toggles
-  the current channel, `V` triggers its variation, and Command+`V` triggers the global variation.
+  the current channel, `V` triggers its variation, `L` opens MIDI Learn, and Command+`V` triggers the global variation.
 - With Caps Lock active, play the current channel from the German keyboard layout: `A S D F G H J K L` are white keys and `W E R T Z U I O P` are black keys.
 - Open **MIDI Learn** and choose **MIDI Mix defaults** for a starting setup using the AKAI MIDI Mix's standard CC assignments. Select the device as the MIDI Learn input first if it is not already selected.

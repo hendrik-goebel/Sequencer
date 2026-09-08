@@ -69,7 +69,7 @@
     <MidiClockPanel :clock-outputs="clockOutputs" :clock-inputs="clockInputs" :clock-output-id="clockOutputId" :clock-input-id="clockInputId"
       @set-clock-output="setClockOutput" @set-clock-input="setClockInput" />
 
-    <button class="midi-learn-open" type="button" @click="midiLearnModalOpen = true">MIDI Learn</button>
+    <button class="midi-learn-open" type="button" @click="openMidiLearn">MIDI Learn</button>
 
     <div v-if="midiLearnModalOpen" class="modal-backdrop" @click.self="midiLearnModalOpen = false">
       <div class="midi-learn-modal" role="dialog" aria-modal="true" aria-labelledby="midi-learn-title">
@@ -229,6 +229,10 @@ function toggleGlobalActions() {
   globalActions.value = !globalActions.value
 }
 
+function openMidiLearn() {
+  midiLearnModalOpen.value = true
+}
+
 async function copySeed() {
   const seed = seedKey.value.trim()
   if (!seed) {
@@ -355,6 +359,7 @@ useKeyboard({
   shiftCurrentToneMaterial,
   storeState: handleStoreState,
   toggleGlobalActions,
+  openMidiLearn,
   playKeyboardNote
 })
 onMounted(() => {

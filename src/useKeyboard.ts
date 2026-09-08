@@ -13,6 +13,7 @@ interface KeyboardHandlers {
   shiftCurrentToneMaterial: (direction: 1 | -1) => void
   storeState: () => void
   toggleGlobalActions: () => void
+  openMidiLearn: () => void
   playKeyboardNote: (key: string) => boolean
 }
 
@@ -86,6 +87,11 @@ export function useKeyboard(handlers: KeyboardHandlers) {
       }
       if (key === 'g') {
         handlers.toggleGlobalActions()
+        event.preventDefault()
+        return
+      }
+      if (key === 'l' && !event.getModifierState('CapsLock')) {
+        handlers.openMidiLearn()
         event.preventDefault()
         return
       }
