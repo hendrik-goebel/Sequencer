@@ -1,4 +1,6 @@
-export function createTickProcessor(initialBpm: number, onTick: () => void, subdivision = 1) {
+const SCHEDULE_AHEAD_MS = 100
+
+export function createTickProcessor(initialBpm: number, onTick: (scheduledAt: number) => void, subdivision = 1) {
   let beatsPerMinute = initialBpm
   let pendingBeatsPerMinute: number | null = null
   let isPlaying = false
@@ -9,7 +11,8 @@ export function createTickProcessor(initialBpm: number, onTick: () => void, subd
   const getIntervalMs = () => (60000 / (beatsPerMinute * (pendingSubdivision ?? subdivision)))
   const nowMs = () => (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now()
 
-  // Fallback perf-based scheduler (drift-correcting)
+  // Fallback perf-based scheduler (drift-correcting) that gives Web MIDI time
+  // to queue each event before its intended output timestamp.
   let nextScheduledTickPerf = 0
   function scheduleLoopFallback() {
     if (!isPlaying) return
@@ -17,16 +20,16 @@ export function createTickProcessor(initialBpm: number, onTick: () => void, subd
     nextScheduledTickPerf ||= now
 
     let safety = 0
-    while (nextScheduledTickPerf <= now + 1 && safety < 1000) {
-      lastTickTimestamp = Date.now()
-      onTick()
+    while (nextScheduledTickPerf <= now + SCHEDULE_AHEAD_MS && safety < 1000) {
+      lastTickTimestamp = nextScheduledTickPerf
+      onTick(nextScheduledTickPerf)
       if (pendingBeatsPerMinute != null) { beatsPerMinute = pendingBeatsPerMinute; pendingBeatsPerMinute = null }
       if (pendingSubdivision != null) { subdivision = pendingSubdivision; pendingSubdivision = null }
       nextScheduledTickPerf += getIntervalMs()
       safety++
     }
 
-    const msUntil = Math.max(nextScheduledTickPerf - nowMs() - 2, 0)
+    const msUntil = Math.max(nextScheduledTickPerf - nowMs() - SCHEDULE_AHEAD_MS - 2, 0)
     clearTimeout(fallbackSchedulerTimer)
     fallbackSchedulerTimer = setTimeout(scheduleLoopFallback, msUntil)
   }

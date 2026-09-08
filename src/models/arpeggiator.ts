@@ -21,9 +21,9 @@ export function stepNotes(value: StepValue | undefined): number[] {
 }
 
 export type ArpeggiatorEvents = {
-  tick: { stepIndex: number, noteIndex: number, pattern: Pattern }
+  tick: { stepIndex: number, noteIndex: number, pattern: Pattern, scheduledAt: number }
   loop: { stepIndex: number }
-  note: { note: number, velocity: number, length: number }
+  note: { note: number, velocity: number, length: number, scheduledAt: number }
   start: { stepIndex: number }
   stop: void
 }
@@ -85,20 +85,25 @@ export function createArpeggiator() {
     stepPointer = stepPointer % Math.max(1, loopLength)
   }
 
-  function tick() {
+  function tick(scheduledAt: number) {
     if (!steps || steps.length === 0) { stepPointer = (stepPointer + 1) % Math.max(1, loopLength); advanceIndexForPattern(); return }
 
     const stepCount = Math.max(1, steps.length)
     const currentStep = stepPointer % stepCount
     const stepValue = steps[currentStep]
 
-    events.emit('tick', { stepIndex: currentStep, noteIndex: noteIndex, pattern })
+    events.emit('tick', { stepIndex: currentStep, noteIndex: noteIndex, pattern, scheduledAt })
 
     const notesForStep = stepNotes(stepValue)
     const duration = isSustainedStep(stepValue) ? Math.max(1, stepValue.duration) : 1
     if (notesForStep.length) {
       notesForStep.forEach((note) => {
-        events.emit('note', { note, velocity: velocities[currentStep] ?? MIDI.VELOCITY_MAX, length: getNoteLengthMilliseconds() * duration })
+        events.emit('note', {
+          note,
+          velocity: velocities[currentStep] ?? MIDI.VELOCITY_MAX,
+          length: getNoteLengthMilliseconds() * duration,
+          scheduledAt
+        })
       })
     }
 

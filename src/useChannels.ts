@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
+import { clearScheduledOutput, initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
 import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
@@ -383,6 +383,7 @@ export function useChannels() {
       // stop all channels
       channels.forEach(channel => { if (channel.playing) channel.arpeggiator.stop() })
       globalPlaying.value = false
+      clearScheduledOutput(selectedOutputId.value)
       midiClockOutput.stop()
     } else {
       // start all channels
@@ -397,6 +398,7 @@ export function useChannels() {
   function stopAll() {
     channels.forEach(channel => channel.arpeggiator.stop())
     globalPlaying.value = false
+    clearScheduledOutput(selectedOutputId.value)
     midiClockOutput.stop()
   }
 
@@ -1397,7 +1399,8 @@ export function useChannels() {
     persistMidiLearnState()
   }
 
-  watch(selectedOutputId, (id) => {
+  watch(selectedOutputId, (id, previousId) => {
+    if (previousId && previousId !== id) clearScheduledOutput(previousId)
     if (id === SINE_OUTPUT_ID) enableSineSynth()
     else disableSineSynth()
     if (id) selectOutput(id)

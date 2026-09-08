@@ -131,7 +131,6 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
   }) as Channel
 
   arpeggiator.on('note', (payload) => {
-    channel.active = true
     const activeOctaves = channel.selectedOctaves.length ? channel.selectedOctaves : [channel.octave]
     const materialNotes = getToneMaterials(channel, activeOctaves)
     const chromaticNotes = activeOctaves.flatMap(octave =>
@@ -158,23 +157,31 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     const velocityOffset = Math.round((Math.random() * 2 - 1) * channel.randomVelocityVariation)
     const velocity = Math.max(0, Math.min(127, payload.velocity + velocityOffset))
     const timingOffset = Math.round(Math.random() * channel.randomTimingVariation)
+    const scheduledAt = payload.scheduledAt + timingOffset
     const { length } = payload
-
+    const visualDelay = Math.max(0, scheduledAt - performance.now())
     setTimeout(() => {
-      if (!channel.playing) return
-      const outputId = selectedOutputId.value
-      console.log(`[note-start] ${channel.name} notes=${chordNotes.join(',')} velocity=${velocity} length=${length} time=${new Date().toISOString()}`)
-      if (!channel.muted && outputId) chordNotes.forEach(chordNote => sendNote(outputId, chordNote, velocity, length, channel.midiChannel - 1))
-      log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTES ${chordNotes.join(',')} vel=${velocity} len=${length}`)
-    }, timingOffset)
+      if (channel.playing) channel.active = true
+    }, visualDelay)
+    const outputId = selectedOutputId.value
+    console.log(`[note-start] ${channel.name} notes=${chordNotes.join(',')} velocity=${velocity} length=${length} scheduledAt=${scheduledAt}`)
+    if (!channel.muted && outputId) {
+      chordNotes.forEach(chordNote =>
+        sendNote(outputId, chordNote, velocity, length, channel.midiChannel - 1, scheduledAt)
+      )
+    }
+    log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTES ${chordNotes.join(',')} vel=${velocity} len=${length}`)
 
-    const timeoutMs = timingOffset + Math.max(length || channel.noteLength || 120, 120)
+    const timeoutMs = visualDelay + Math.max(length || channel.noteLength || 120, 120)
     setTimeout(() => { channel.active = false }, timeoutMs)
   })
 
   arpeggiator.on('tick', (payload) => {
     const { stepIndex } = payload
-    channel.playStep = stepIndex
+    const visualDelay = Math.max(0, payload.scheduledAt - performance.now())
+    setTimeout(() => {
+      if (channel.playing) channel.playStep = stepIndex
+    }, visualDelay)
   })
 
   arpeggiator.on('loop', () => {

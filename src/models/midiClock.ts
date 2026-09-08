@@ -1,7 +1,7 @@
 import { createTickProcessor } from '../midi/tickProcessor'
 import { createWorkletClock } from '../midi/workletClock'
 
-export function createMidiClock(initialBpm: number, onTick: () => void, subdivision = 1) {
+export function createMidiClock(initialBpm: number, onTick: (scheduledAt: number) => void, subdivision = 1) {
   // Create both implementations and prefer worklet when available
   const fallback = createTickProcessor(initialBpm, onTick, subdivision)
   const worklet = createWorkletClock(initialBpm, onTick, subdivision)
@@ -16,7 +16,8 @@ export function createMidiClock(initialBpm: number, onTick: () => void, subdivis
     // Try to initialize worklet module
     const workletReady = await worklet.ensureWorkletModule()
     if (workletReady) {
-      worklet.start()
+      if (delayMs && delayMs > 0) worklet.startAlignedTo(delayMs)
+      else worklet.start()
       isUsingWorklet = true
       // stop fallback if it started for some reason
       try { fallback.stop() } catch (e) {}

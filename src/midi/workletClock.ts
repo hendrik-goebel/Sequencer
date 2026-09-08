@@ -1,4 +1,6 @@
-export function createWorkletClock(initialBpm: number, onTick: () => void, subdivision = 1) {
+const SCHEDULE_AHEAD_MS = 100
+
+export function createWorkletClock(initialBpm: number, onTick: (scheduledAt: number) => void, subdivision = 1) {
   let beatsPerMinute = initialBpm
   let pendingBeatsPerMinute: number | null = null
   let audioContext: any = null
@@ -8,6 +10,14 @@ export function createWorkletClock(initialBpm: number, onTick: () => void, subdi
   let lastTickTimestamp = 0
 
   const nowMs = () => (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now()
+
+  function performanceTimeForAudioTime(audioTime: number) {
+    const outputTimestamp = audioContext?.getOutputTimestamp?.()
+    if (outputTimestamp && Number.isFinite(outputTimestamp.contextTime) && Number.isFinite(outputTimestamp.performanceTime)) {
+      return outputTimestamp.performanceTime + (audioTime - outputTimestamp.contextTime) * 1000
+    }
+    return nowMs() + Math.max(0, audioTime - audioContext.currentTime) * 1000
+  }
 
   function tryCreateAudioContext() {
     if (audioContext) return true
@@ -34,7 +44,7 @@ export function createWorkletClock(initialBpm: number, onTick: () => void, subdi
 
     moduleLoadingPromise = (async () => {
       try {
-        const moduleUrl = new URL('./midi/midi-clock-processor.js', import.meta.url).toString()
+        const moduleUrl = new URL('./midi-clock-processor.js', import.meta.url).toString()
         await audioContext.audioWorklet.addModule(moduleUrl)
         workletModuleLoaded = true
         return true
@@ -53,12 +63,18 @@ export function createWorkletClock(initialBpm: number, onTick: () => void, subdi
     try {
       audioWorkletNode = new (globalThis as any).AudioWorkletNode(audioContext, 'midi-clock-processor')
       audioWorkletNode.port.onmessage = (event: any) => {
-        if (event?.data?.type === 'tick') {
-          lastTickTimestamp = Date.now()
-          onTick()
+        if (event?.data?.type === 'tick' && Number.isFinite(event.data.audioTime)) {
+          const scheduledAt = performanceTimeForAudioTime(event.data.audioTime)
+          lastTickTimestamp = scheduledAt
+          onTick(scheduledAt)
         }
       }
-      postToWorklet({ type: 'init', sampleRate: audioContext.sampleRate, bpm: beatsPerMinute * subdivision })
+      postToWorklet({
+        type: 'init',
+        sampleRate: audioContext.sampleRate,
+        bpm: beatsPerMinute * subdivision,
+        scheduleAheadSamples: Math.round(audioContext.sampleRate * SCHEDULE_AHEAD_MS / 1000)
+      })
       const startInSamples = (typeof delayMs === 'number') ? Math.max(0, Math.floor((delayMs/1000) * audioContext.sampleRate)) : undefined
       postToWorklet({ type: 'start', bpm: beatsPerMinute * subdivision, startInSamples })
       return true
@@ -90,9 +106,8 @@ export function createWorkletClock(initialBpm: number, onTick: () => void, subdi
   }
 
   function timeToNextTick() {
-    // Worklet reports near-zero; keep simple
-    if (!audioWorkletNode || !audioContext) return 0
-    return 0
+    if (!audioWorkletNode) return 0
+    return Math.max(0, lastTickTimestamp - nowMs())
   }
 
   function getState() {

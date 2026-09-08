@@ -10,6 +10,13 @@ MIDI clock output sends standard 24 PPQN realtime clock messages to the selected
 while Global Play is running. MIDI clock input measures incoming `0xF8` pulses, updates the
 global tempo, and follows incoming Start/Continue/Stop transport messages.
 
+Sequenced note-on and note-off messages are queued with Web MIDI timestamps about 100 ms before
+their intended beat, so rendering and timer jitter do not determine their output time. Stop and
+output changes clear queued notes. Physical timing still depends on the browser, MIDI driver,
+interface, USB transport, and receiving device. The **Timing variation** control remains an
+intentional 0–100 ms musical delay. AudioWorklet-capable Chrome or Edge is recommended; other
+browsers use a drift-corrected timer fallback.
+
 MIDI Learn (AKAI MIDI Mix ready):
 - Open **MIDI LEARN**.
 - Select a MIDI input (for AKAI MIDI Mix choose the MIDImix input port).
