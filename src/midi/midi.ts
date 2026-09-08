@@ -4,10 +4,17 @@ let midiAccess: WebMidi.MIDIAccess | null = null
 let selectedOutput: WebMidi.MIDIOutput | null = null
 
 export const SINE_OUTPUT_ID = '__sine__'
+export const BROADCAST_OUTPUT_ID = '__broadcast_midi__'
 const VIRTUAL_OUTPUTS = [{ id: SINE_OUTPUT_ID, name: 'Sine Synth (internal)' }]
+const BROADCAST_MIDI_OUTPUT = { id: BROADCAST_OUTPUT_ID, name: 'BroadcastChannel (other tab)' }
+const BROADCAST_MIDI_CHANNEL_NAME = 'arpeggiator-midi-events-v1'
 let sineSynthEnabled = false
 let audioContext: AudioContext | null = null
 const KEYBOARD_SCHEDULE_AHEAD_MS = 12
+let broadcastMidiChannel: BroadcastChannel | null = null
+let selectedBroadcastOutput = false
+const broadcastMidiTimers = new Set<ReturnType<typeof setTimeout>>()
+const broadcastActiveNotes = new Map<string, number[]>()
 
 export interface MidiInputMessage {
   data: number[]
@@ -106,6 +113,55 @@ function resolveScheduledTime(timestamp?: number) {
   return Math.max(now, timestamp ?? now + KEYBOARD_SCHEDULE_AHEAD_MS)
 }
 
+function isBroadcastMidiAvailable() {
+  return typeof BroadcastChannel !== 'undefined'
+}
+
+function ensureBroadcastMidiChannel() {
+  if (!broadcastMidiChannel && isBroadcastMidiAvailable()) {
+    broadcastMidiChannel = new BroadcastChannel(BROADCAST_MIDI_CHANNEL_NAME)
+  }
+  return broadcastMidiChannel
+}
+
+function broadcastMidiMessage(data: number[], timestamp: number) {
+  const channel = ensureBroadcastMidiChannel()
+  if (!channel) return
+  const delay = Math.max(0, timestamp - nowMs())
+  const timer = setTimeout(() => {
+    broadcastMidiTimers.delete(timer)
+    channel.postMessage({ type: 'midi-message', data })
+    const status = data[0] & 0xf0
+    const noteKey = `${data[0] & 0x0f}:${data[1]}`
+    if (status === noteOnStatus(data[0] & 0x0f) && data[2] > 0) {
+      broadcastActiveNotes.set(noteKey, data)
+    } else if (status === noteOffStatus(data[0] & 0x0f) || (status === noteOnStatus(data[0] & 0x0f) && data[2] === 0)) {
+      broadcastActiveNotes.delete(noteKey)
+    }
+  }, delay)
+  broadcastMidiTimers.add(timer)
+}
+
+function clearBroadcastMidiOutput() {
+  broadcastMidiTimers.forEach(timer => clearTimeout(timer))
+  broadcastMidiTimers.clear()
+  const channel = broadcastMidiChannel
+  if (!channel) return
+  broadcastActiveNotes.forEach(data => {
+    channel.postMessage({
+      type: 'midi-message',
+      data: [noteOffStatus(data[0] & 0x0f), data[1], MIDI.DEFAULT_OFF_VELOCITY]
+    })
+  })
+  broadcastActiveNotes.clear()
+}
+
+function closeBroadcastMidiOutput() {
+  clearBroadcastMidiOutput()
+  broadcastMidiChannel?.close()
+  broadcastMidiChannel = null
+}
+
 export async function initMidi() {
   if (navigator && (navigator as any).requestMIDIAccess) {
     midiAccess = await (navigator as any).requestMIDIAccess()
@@ -126,6 +182,7 @@ export function listOutputs() {
     midiAccess.outputs.forEach((o:any)=> outs.push({id: o.id, name: o.name || o.manufacturer || o.id}))
   }
   outs.push(...VIRTUAL_OUTPUTS)
+  if (isBroadcastMidiAvailable()) outs.push(BROADCAST_MIDI_OUTPUT)
   return outs
 }
 
@@ -141,7 +198,7 @@ export function listInputs() {
 }
 
 export function getOutput(id: string | null) {
-  if (!midiAccess || !id || id === SINE_OUTPUT_ID) return null
+  if (!midiAccess || !id || id === SINE_OUTPUT_ID || id === BROADCAST_OUTPUT_ID) return null
   return midiAccess.outputs.get(id) ?? null
 }
 
@@ -151,6 +208,13 @@ export function getInput(id: string | null) {
 }
 
 export function selectOutput(id:string) {
+  selectedBroadcastOutput = id === BROADCAST_OUTPUT_ID
+  if (selectedBroadcastOutput) {
+    selectedOutput = null
+    ensureBroadcastMidiChannel()
+    return null
+  }
+  closeBroadcastMidiOutput()
   if (id === SINE_OUTPUT_ID) {
     selectedOutput = null
     return null
@@ -174,14 +238,20 @@ export function sendNote(
     playSine(note, velocity, lengthMs, scheduledAt)
     return
   }
-
-  if (!midiAccess) return
-  const out = midiAccess.outputs.get(outputId)
-  if (!out) return
   const safeNote = clampMidiValue(note)
   const safeVelocity = clampMidiValue(velocity)
   const safeChannel = Math.max(0, Math.min(15, Math.floor(channel)))
   const noteOffAt = scheduledAt + Math.max(0, lengthMs)
+  if (outputId === BROADCAST_OUTPUT_ID) {
+    console.log(`[midi-note-on] output=${outputId} channel=${safeChannel + 1} note=${safeNote} velocity=${safeVelocity} scheduledAt=${scheduledAt}`)
+    broadcastMidiMessage([noteOnStatus(safeChannel), safeNote, safeVelocity], scheduledAt)
+    broadcastMidiMessage([noteOffStatus(safeChannel), safeNote, MIDI.DEFAULT_OFF_VELOCITY], noteOffAt)
+    return
+  }
+
+  if (!midiAccess) return
+  const out = midiAccess.outputs.get(outputId)
+  if (!out) return
   console.log(`[midi-note-on] output=${outputId} channel=${safeChannel + 1} note=${safeNote} velocity=${safeVelocity} scheduledAt=${scheduledAt}`)
   out.send([noteOnStatus(safeChannel), safeNote, safeVelocity], scheduledAt)
   out.send([noteOffStatus(safeChannel), safeNote, MIDI.DEFAULT_OFF_VELOCITY], noteOffAt)
@@ -189,11 +259,16 @@ export function sendNote(
 
 export function clearScheduledOutput(outputId: string | null) {
   if (!outputId || outputId === SINE_OUTPUT_ID) return
+  if (outputId === BROADCAST_OUTPUT_ID) {
+    clearBroadcastMidiOutput()
+    return
+  }
   midiAccess?.outputs.get(outputId)?.clear()
 }
 
 export function clearAllScheduledOutputs() {
   midiAccess?.outputs.forEach(output => output.clear())
+  clearBroadcastMidiOutput()
 }
 
 function playSine(note:number, velocity:number, lengthMs:number, timestamp: number) {
@@ -221,11 +296,16 @@ function playSine(note:number, velocity:number, lengthMs:number, timestamp: numb
 }
 
 export function sendRaw(note:number, velocity:number, lengthMs:number, channel = 0, timestamp?: number) {
-  if (!selectedOutput) return
   const safeNote = clampMidiValue(note)
   const safeVelocity = clampMidiValue(velocity)
   const safeChannel = Math.max(0, Math.min(15, Math.floor(channel)))
   const scheduledAt = resolveScheduledTime(timestamp)
+  if (selectedBroadcastOutput) {
+    broadcastMidiMessage([noteOnStatus(safeChannel), safeNote, safeVelocity], scheduledAt)
+    broadcastMidiMessage([noteOffStatus(safeChannel), safeNote, MIDI.DEFAULT_OFF_VELOCITY], scheduledAt + Math.max(0, lengthMs))
+    return
+  }
+  if (!selectedOutput) return
   console.log(`[midi-note-on] output=${selectedOutput.id} channel=${safeChannel + 1} note=${safeNote} velocity=${safeVelocity} scheduledAt=${scheduledAt}`)
   selectedOutput.send([noteOnStatus(safeChannel), safeNote, safeVelocity], scheduledAt)
   selectedOutput.send([noteOffStatus(safeChannel), safeNote, MIDI.DEFAULT_OFF_VELOCITY], scheduledAt + Math.max(0, lengthMs))

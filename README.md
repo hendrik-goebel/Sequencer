@@ -1,5 +1,7 @@
 Web Arpeggiator (Vue 3 + TypeScript)
 
+See [Broadcast MIDI protocol](docs/broadcast-midi-protocol.md) for consuming its cross-tab clock and note messages from another app.
+
 Quick start:
 
 1. npm install
@@ -9,6 +11,13 @@ Quick start:
 MIDI clock output sends standard 24 PPQN realtime clock messages to the selected clock output
 while Global Play is running. MIDI clock input measures incoming `0xF8` pulses, updates the
 global tempo, and follows incoming Start/Continue/Stop transport messages.
+When available, select **BroadcastChannel (other tab)** for Clock out in one tab and Clock in
+in another tab to exchange those clock and transport messages without a virtual MIDI port. Both
+tabs must be served from the same origin (scheme, host, and port); this route does not carry notes
+or other MIDI messages.
+The main **Routing** output selector also offers **BroadcastChannel (other tab)**. It posts
+serialized note-on and note-off byte arrays on `arpeggiator-midi-events-v1` for a same-origin tab
+that subscribes to that channel; it is separate from the clock channel and is not a Web MIDI port.
 
 Sequenced note-on and note-off messages are queued with Web MIDI timestamps about 100 ms before
 their intended beat, so rendering and timer jitter do not determine their output time. Stop and
@@ -28,7 +37,7 @@ MIDI Learn (AKAI MIDI Mix ready):
 
 Notes:
 - Web MIDI may still require user permission depending on browser security settings.
-- To route MIDI to other apps, use a virtual MIDI port (IAC on macOS, loopMIDI on Windows).
+- To route notes or MIDI to other apps, use a virtual MIDI port (IAC on macOS, loopMIDI on Windows).
 - Keyboard shortcuts: `1`-`8` select a channel, Left/Right select the previous/next channel,
   `M` mutes the current channel, Command+`M` mutes/unmutes all channels, Space toggles
   the current channel, `V` triggers its variation, `L` opens MIDI Learn, and Command+`V` triggers the global variation.

@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue'
-import { clearScheduledOutput, initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
-import { createMidiClockInput, createMidiClockOutput } from './midi/clockSync'
+import { BROADCAST_OUTPUT_ID, clearScheduledOutput, initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
+import { BROADCAST_CLOCK_ID, BROADCAST_CLOCK_NAME, createMidiClockInput, createMidiClockOutput, isBroadcastClockAvailable } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
 import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
@@ -1383,19 +1383,38 @@ export function useChannels() {
     persistMidiLearnState()
   }
 
+  function refreshClockEndpoints() {
+    clockOutputs.value = outputs.value.filter(output =>
+      output.id !== SINE_OUTPUT_ID && output.id !== BROADCAST_OUTPUT_ID
+    )
+    clockInputs.value = listInputs()
+    if (isBroadcastClockAvailable()) {
+      const broadcastClock = { id: BROADCAST_CLOCK_ID, name: BROADCAST_CLOCK_NAME }
+      clockOutputs.value.push(broadcastClock)
+      clockInputs.value.push(broadcastClock)
+    }
+    if (!clockOutputId.value) {
+      setClockOutput(isBroadcastClockAvailable() ? BROADCAST_CLOCK_ID : clockOutputs.value[0]?.id ?? null)
+    }
+  }
+
   async function enableMidi(){
+    // BroadcastChannel routing does not depend on Web MIDI permission or support.
     outputs.value = listOutputs()
+    refreshClockEndpoints()
+    if (!selectedOutputId.value && isBroadcastClockAvailable()) {
+      selectedOutputId.value = BROADCAST_OUTPUT_ID
+    }
+
     await initMidi()
     outputs.value = listOutputs()
-    clockOutputs.value = outputs.value.filter(output => output.id !== SINE_OUTPUT_ID)
-    if (clockOutputs.value.length && !clockOutputId.value) setClockOutput(clockOutputs.value[0].id)
-    clockInputs.value = listInputs()
+    refreshClockEndpoints()
+    if (!selectedOutputId.value) selectedOutputId.value = outputs.value[0]?.id ?? null
     await refreshMidiLearnInputs()
     if (!selectedMidiLearnInputId.value && midiLearnInputs.value.length) {
       selectedMidiLearnInputId.value = midiLearnInputs.value[0].id
       attachMidiLearnInputListener()
     }
-    if (outputs.value.length && !selectedOutputId.value) selectedOutputId.value = outputs.value[0].id
     persistMidiLearnState()
   }
 
@@ -2121,7 +2140,7 @@ export function useChannels() {
   function setClockOutput(id: string | null) {
     clockOutputId.value = id
     midiClockOutputEnabled.value = id !== null
-    midiClockOutput.setOutput(getOutput(id))
+    midiClockOutput.setOutput(id === BROADCAST_CLOCK_ID ? 'broadcast' : getOutput(id))
     if (id === null) midiClockOutput.stop()
     else if (globalPlaying.value) syncMidiClockTransport()
   }
@@ -2129,7 +2148,7 @@ export function useChannels() {
   function setClockInput(id: string | null) {
     clockInputId.value = id
     midiClockInputEnabled.value = id !== null
-    midiClockInput.setInput(getInput(id))
+    midiClockInput.setInput(id === BROADCAST_CLOCK_ID ? 'broadcast' : getInput(id))
     // Switch clock direction immediately when the input is enabled/disabled.
     syncMidiClockTransport()
   }
