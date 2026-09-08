@@ -8,6 +8,9 @@ Quick start:
 2. npm run dev
 3. Open the app in Chrome/Edge (Web MIDI supported). MIDI is enabled automatically on load; select your output.
 
+Build output uses relative asset URLs, so it can be deployed in a subdirectory such as
+`https://www.example.com/seq/`.
+
 MIDI clock output sends standard 24 PPQN realtime clock messages to the selected clock output
 while Global Play is running. MIDI clock input measures incoming `0xF8` pulses, updates the
 global tempo, and follows incoming Start/Continue/Stop transport messages.
