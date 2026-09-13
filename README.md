@@ -46,3 +46,4 @@ Notes:
   the current channel, `V` triggers its variation, `L` opens MIDI Learn, and Command+`V` triggers the global variation.
 - With Caps Lock active, play the current channel from the German keyboard layout: `A S D F G H J K L` are white keys and `W E R T Z U I O P` are black keys.
 - Open **MIDI Learn** and choose **MIDI Mix defaults** for a starting setup using the AKAI MIDI Mix's standard CC assignments. Select the device as the MIDI Learn input first if it is not already selected.
+test
