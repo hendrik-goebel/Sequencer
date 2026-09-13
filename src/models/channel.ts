@@ -1,11 +1,12 @@
 import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, KEYS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
 import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
 export type PlaybackMode = 'state' | 'arrangement'
+export type RandomToneMode = 'material' | 'key' | 'diatonic' | 'micro'
 
 export interface Channel {
   id: number
@@ -23,10 +24,12 @@ export interface Channel {
   materialPitchClasses: number[]
   reduceNotes: boolean
   randomNoteProbability: number
+  randomPauseProbability: number
   randomTimingVariation: number
   randomVelocityVariation: number
-  randomToneVariation: number
+  randomToneMode: RandomToneMode
   randomChordProbability: number
+  randomChordVelocityDamping: number
   steps: StepValue[]
   velocities: number[]
   base: number
@@ -100,10 +103,12 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     materialPitchClasses: materialPitchClasses.slice(0, materialAmount).sort((a, b) => a - b),
     reduceNotes: false,
     randomNoteProbability: 0,
+    randomPauseProbability: 0,
     randomTimingVariation: 0,
     randomVelocityVariation: 0,
-    randomToneVariation: 0,
+    randomToneMode: 'material' as RandomToneMode,
     randomChordProbability: 0,
+    randomChordVelocityDamping: 0,
     steps: DEFAULT_STEPS.slice() as StepValue[],
     velocities: Array.from({ length: DEFAULT_STEPS.length }, () => Math.floor(Math.random() * 128)),
     base: DEFAULT_BASE,
@@ -131,8 +136,19 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
   }) as Channel
 
   arpeggiator.on('note', (payload) => {
+    if (Math.random() < channel.randomPauseProbability) return
+
     const activeOctaves = channel.selectedOctaves.length ? channel.selectedOctaves : [channel.octave]
     const materialNotes = getToneMaterials(channel, activeOctaves)
+    const keyPitchClass = KEYS.find(key => key.name === channel.key)?.pitchClass ?? null
+    const keyNotes = keyPitchClass === null
+      ? materialNotes
+      : activeOctaves.map(octave => 12 * (octave + 1) + keyPitchClass)
+    const diatonicNotes = keyPitchClass === null
+      ? materialNotes
+      : activeOctaves.flatMap(octave =>
+        MAJOR_SCALE_OFFSETS.map(offset => 12 * (octave + 1) + (keyPitchClass + offset) % 12)
+      )
     const chromaticNotes = activeOctaves.flatMap(octave =>
       Array.from({ length: 12 }, (_, index) => 12 * (octave + 1) + index)
     )
@@ -140,9 +156,13 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
       Array.from({ length: Math.round(12 / MICROTONAL_STEP) }, (_, index) =>
         12 * (octave + 1) + index * MICROTONAL_STEP)
     )
-    const tonePool = channel.randomToneVariation <= 50
-      ? (Math.random() < channel.randomToneVariation / 50 ? chromaticNotes : materialNotes)
-      : (Math.random() < (channel.randomToneVariation - 50) / 50 ? microtonalNotes : chromaticNotes)
+    const tonePool = channel.randomToneMode === 'key'
+      ? keyNotes
+      : channel.randomToneMode === 'diatonic'
+        ? diatonicNotes
+        : channel.randomToneMode === 'micro'
+          ? microtonalNotes
+          : materialNotes
     const eligibleRandomNotes = [...new Set(tonePool)].filter(candidate => candidate !== payload.note)
     const shouldSubstituteNote = eligibleRandomNotes.length > 0 &&
       Math.random() < channel.randomNoteProbability
@@ -156,6 +176,9 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
       : [note]
     const velocityOffset = Math.round((Math.random() * 2 - 1) * channel.randomVelocityVariation)
     const velocity = Math.max(0, Math.min(127, payload.velocity + velocityOffset))
+    const chordVelocity = shouldPlayChord
+      ? Math.round(velocity * (1 - channel.randomChordVelocityDamping / 100))
+      : velocity
     const timingOffset = Math.round(Math.random() * channel.randomTimingVariation)
     const scheduledAt = payload.scheduledAt + timingOffset
     const { length } = payload
@@ -164,13 +187,13 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
       if (channel.playing) channel.active = true
     }, visualDelay)
     const outputId = selectedOutputId.value
-    console.log(`[note-start] ${channel.name} notes=${chordNotes.join(',')} velocity=${velocity} length=${length} scheduledAt=${scheduledAt}`)
+    console.log(`[note-start] ${channel.name} notes=${chordNotes.join(',')} velocity=${chordVelocity} length=${length} scheduledAt=${scheduledAt}`)
     if (!channel.muted && outputId) {
       chordNotes.forEach(chordNote =>
-        sendNote(outputId, chordNote, velocity, length, channel.midiChannel - 1, scheduledAt)
+        sendNote(outputId, chordNote, chordVelocity, length, channel.midiChannel - 1, scheduledAt)
       )
     }
-    log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTES ${chordNotes.join(',')} vel=${velocity} len=${length}`)
+    log.value.unshift(`${new Date().toISOString()} ${channel.name} NOTES ${chordNotes.join(',')} vel=${chordVelocity} len=${length}`)
 
     const timeoutMs = visualDelay + Math.max(length || channel.noteLength || 120, 120)
     setTimeout(() => { channel.active = false }, timeoutMs)

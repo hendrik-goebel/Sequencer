@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { BROADCAST_OUTPUT_ID, clearScheduledOutput, initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
 import { BROADCAST_CLOCK_ID, BROADCAST_CLOCK_NAME, createMidiClockInput, createMidiClockOutput, isBroadcastClockAvailable } from './midi/clockSync'
-import { Channel, createChannel, PlaybackMode, StoredArpeggiatorState } from './models/channel'
+import { Channel, createChannel, PlaybackMode, RandomToneMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
 import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
@@ -14,6 +14,7 @@ const MIDI_LEARN_STORAGE_KEY = 'arp-midi-learn-state-v1'
 const MIDI_LEARN_TARGET_GROUPS = ['global', 'channel', 'sequence', 'velocity', 'randomization'] as const
 const PATTERN_OPTIONS: Pattern[] = ['up', 'down', 'updown', 'random']
 const QUANTISATION_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 32, 64] as const
+const RANDOM_TONE_MODES: RandomToneMode[] = ['material', 'key', 'diatonic', 'micro']
 
 type MidiLearnTargetGroup = typeof MIDI_LEARN_TARGET_GROUPS[number]
 
@@ -203,10 +204,12 @@ export function useChannels() {
 
     targets.push(
       { id: 'random-note-probability', label: 'Note substitution', group: 'randomization' },
+      { id: 'random-pause-probability', label: 'Pause probability', group: 'randomization' },
       { id: 'random-timing-variation', label: 'Timing variation', group: 'randomization' },
       { id: 'random-velocity-variation', label: 'Velocity variation', group: 'randomization' },
-      { id: 'random-tone-variation', label: 'Tone variation', group: 'randomization' },
-      { id: 'random-chord-probability', label: 'Chord probability', group: 'randomization' }
+      { id: 'random-tone-variation', label: 'Tone', group: 'randomization' },
+      { id: 'random-chord-probability', label: 'Chord probability', group: 'randomization' },
+      { id: 'random-chord-velocity-damping', label: 'Chord damping', group: 'randomization' }
     )
 
     return targets
@@ -580,6 +583,10 @@ export function useChannels() {
     currentChannel.value.randomNoteProbability = Math.max(0, Math.min(100, value)) / 100
   }
 
+  function updateRandomPauseProbability(value: number) {
+    currentChannel.value.randomPauseProbability = Math.max(0, Math.min(100, value)) / 100
+  }
+
   function updateRandomTimingVariation(value: number) {
     currentChannel.value.randomTimingVariation = Math.max(0, Math.min(100, value))
   }
@@ -588,12 +595,17 @@ export function useChannels() {
     currentChannel.value.randomVelocityVariation = Math.max(0, Math.min(100, value))
   }
 
-  function updateRandomToneVariation(value: number) {
-    currentChannel.value.randomToneVariation = Math.max(0, Math.min(100, value))
+  function updateRandomToneMode(value: string) {
+    const mode = RANDOM_TONE_MODES.find(mode => mode === value)
+    if (mode) currentChannel.value.randomToneMode = mode
   }
 
   function updateRandomChordProbability(value: number) {
     currentChannel.value.randomChordProbability = Math.max(0, Math.min(100, value)) / 100
+  }
+
+  function updateRandomChordVelocityDamping(value: number) {
+    currentChannel.value.randomChordVelocityDamping = Math.max(0, Math.min(100, value))
   }
 
   function setPlaybackMode(index: number, mode: PlaybackMode) {
@@ -1227,6 +1239,9 @@ export function useChannels() {
       case 'random-note-probability':
         updateRandomNoteProbability(midiLearnControlValue(messageValue))
         return
+      case 'random-pause-probability':
+        updateRandomPauseProbability(midiLearnControlValue(messageValue))
+        return
       case 'random-timing-variation':
         updateRandomTimingVariation(midiLearnControlValue(messageValue))
         return
@@ -1234,10 +1249,13 @@ export function useChannels() {
         updateRandomVelocityVariation(midiLearnControlValue(messageValue))
         return
       case 'random-tone-variation':
-        updateRandomToneVariation(midiLearnControlValue(messageValue))
+        updateRandomToneMode(RANDOM_TONE_MODES[midiLearnIndexValue(messageValue, RANDOM_TONE_MODES.length)])
         return
       case 'random-chord-probability':
         updateRandomChordProbability(midiLearnControlValue(messageValue))
+        return
+      case 'random-chord-velocity-damping':
+        updateRandomChordVelocityDamping(midiLearnControlValue(messageValue))
     }
   }
 
@@ -2040,10 +2058,12 @@ export function useChannels() {
     target.materialPitchClasses = source.materialPitchClasses.slice()
     target.reduceNotes = source.reduceNotes
     target.randomNoteProbability = source.randomNoteProbability
+    target.randomPauseProbability = source.randomPauseProbability
     target.randomTimingVariation = source.randomTimingVariation
     target.randomVelocityVariation = source.randomVelocityVariation
-    target.randomToneVariation = source.randomToneVariation
+    target.randomToneMode = source.randomToneMode
     target.randomChordProbability = source.randomChordProbability
+    target.randomChordVelocityDamping = source.randomChordVelocityDamping
     target.steps = source.steps.map(cloneStep)
     target.base = source.base
     target.octave = source.octave
@@ -2176,10 +2196,12 @@ export function useChannels() {
     toggleMicrotones,
     toggleReduceNotes,
     updateRandomNoteProbability,
+    updateRandomPauseProbability,
     updateRandomTimingVariation,
     updateRandomVelocityVariation,
-    updateRandomToneVariation,
+    updateRandomToneMode,
     updateRandomChordProbability,
+    updateRandomChordVelocityDamping,
     cycleStep,
     updateVelocity,
     randomizeVelocities,

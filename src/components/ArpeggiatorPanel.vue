@@ -48,10 +48,12 @@ const emit = defineEmits<{
   (event: 'update-quant', value: number): void
   (event: 'update-arpeggio-length', value: number): void
   (event: 'update-random-note-probability', value: number): void
+  (event: 'update-random-pause-probability', value: number): void
   (event: 'update-random-timing-variation', value: number): void
   (event: 'update-random-velocity-variation', value: number): void
-  (event: 'update-random-tone-variation', value: number): void
+  (event: 'update-random-tone-mode', value: string): void
   (event: 'update-random-chord-probability', value: number): void
+  (event: 'update-random-chord-velocity-damping', value: number): void
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
@@ -244,31 +246,59 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           </span>
         </label>
         <label class="randomization-control">
-          <span>Timing variation</span>
+          <span>Note material</span>
           <span class="randomization-slider-row">
-            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomTimingVariation" aria-label="Maximum timing variation in milliseconds" @input="$emit('update-random-timing-variation', +($event.target as HTMLInputElement).value)" />
-            <output>{{ visualChannel.randomTimingVariation }}ms</output>
+            <select :value="visualChannel.randomToneMode" aria-label="Random note tone pool" @change="$emit('update-random-tone-mode', ($event.target as HTMLSelectElement).value)">
+              <option value="material">Material</option>
+              <option value="key">Key</option>
+              <option value="diatonic">Diatonic</option>
+              <option value="micro">Micro</option>
+            </select>
           </span>
         </label>
         <label class="randomization-control">
-          <span>Velocity variation</span>
+          <span>Pause probability</span>
           <span class="randomization-slider-row">
-            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomVelocityVariation" aria-label="Maximum velocity variation" @input="$emit('update-random-velocity-variation', +($event.target as HTMLInputElement).value)" />
-            <output>±{{ visualChannel.randomVelocityVariation }}</output>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              :value="Math.round(visualChannel.randomPauseProbability * 100)"
+              aria-label="Pause probability"
+              @input="$emit('update-random-pause-probability', +($event.target as HTMLInputElement).value)"
+            />
+            <output>{{ Math.round(visualChannel.randomPauseProbability * 100) }}%</output>
           </span>
         </label>
-        <label class="randomization-control">
-          <span>Tone</span>
-          <span class="randomization-slider-row">
-            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomToneVariation" aria-label="Tone variation from tone material to microtonal notes" @input="$emit('update-random-tone-variation', +($event.target as HTMLInputElement).value)" />
-            <output>{{ visualChannel.randomToneVariation }}</output>
-          </span>
-        </label>
+        <div class="randomization-variation-row">
+          <label class="randomization-control">
+            <span>Timing variation</span>
+            <span class="randomization-slider-row">
+              <input type="range" min="0" max="100" step="1" :value="visualChannel.randomTimingVariation" aria-label="Maximum timing variation in milliseconds" @input="$emit('update-random-timing-variation', +($event.target as HTMLInputElement).value)" />
+              <output>{{ visualChannel.randomTimingVariation }}ms</output>
+            </span>
+          </label>
+          <label class="randomization-control">
+            <span>Velocity variation</span>
+            <span class="randomization-slider-row">
+              <input type="range" min="0" max="100" step="1" :value="visualChannel.randomVelocityVariation" aria-label="Maximum velocity variation" @input="$emit('update-random-velocity-variation', +($event.target as HTMLInputElement).value)" />
+              <output>±{{ visualChannel.randomVelocityVariation }}</output>
+            </span>
+          </label>
+        </div>
         <label class="randomization-control">
           <span>Chords</span>
           <span class="randomization-slider-row">
             <input type="range" min="0" max="100" step="1" :value="Math.round(visualChannel.randomChordProbability * 100)" aria-label="Four-note chord probability" @input="$emit('update-random-chord-probability', +($event.target as HTMLInputElement).value)" />
             <output>{{ Math.round(visualChannel.randomChordProbability * 100) }}%</output>
+          </span>
+        </label>
+        <label class="randomization-control">
+          <span>Chord damping</span>
+          <span class="randomization-slider-row">
+            <input type="range" min="0" max="100" step="1" :value="visualChannel.randomChordVelocityDamping" aria-label="Chord velocity damping" @input="$emit('update-random-chord-velocity-damping', +($event.target as HTMLInputElement).value)" />
+            <output>{{ visualChannel.randomChordVelocityDamping }}%</output>
           </span>
         </label>
       </div>
@@ -397,12 +427,14 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 .sequencer { overflow-x: auto; }
 .randomization-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); }
 .randomization-section h3 { color: var(--teal); }
-.randomization-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; margin-top: .8rem; }
+.randomization-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: .8rem; }
+.randomization-variation-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .randomization-control { display: grid; gap: .5rem; color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .09em; }
 .randomization-control small { color: var(--text-dim); font-size: .5rem; }
 .randomization-slider-row { display: flex; align-items: center; gap: .55rem; }
-.randomization-slider-row input, .randomization-control > input { width: 100%; min-width: 0; padding: 0; accent-color: var(--teal); }
-.randomization-slider-row output { min-width: 2.5rem; color: var(--teal-soft); font: 700 .7rem ui-monospace, monospace; text-align: right; }
+.randomization-slider-row input, .randomization-slider-row select, .randomization-control > input { width: 100%; min-width: 0; padding: 0; accent-color: var(--teal); }
+.randomization-slider-row input { flex: 1; }
+.randomization-slider-row output { flex: 0 0 3rem; width: 3rem; color: var(--teal-soft); font: 700 .7rem ui-monospace, monospace; text-align: right; }
 .note-grid-scroll {
   max-height: 32rem;
   overflow: auto;
@@ -552,5 +584,6 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
 }
 .section-label { display: flex; justify-content: space-between; margin: 0 0 .6rem; }
 .section-label span { color: #52636f; font-size: .55rem; }
-@media (max-width: 560px) { .arpeggiator-panel { padding: .8rem; } .sequence-section { grid-template-columns: 1fr 1fr; } .sequence-section h3 { grid-column: 1 / -1; } .routing { grid-template-columns: 1fr; } .control-column { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { .randomization-controls, .randomization-variation-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .arpeggiator-panel { padding: .8rem; } .sequence-section { grid-template-columns: 1fr 1fr; } .sequence-section h3 { grid-column: 1 / -1; } .routing { grid-template-columns: 1fr; } .control-column { grid-template-columns: 1fr 1fr; } .randomization-controls, .randomization-variation-row { grid-template-columns: 1fr; } }
 </style>

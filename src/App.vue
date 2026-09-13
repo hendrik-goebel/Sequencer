@@ -45,10 +45,12 @@
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="toggleGlobalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"
       @update-random-note-probability="updateRandomNoteProbability"
+      @update-random-pause-probability="updateRandomPauseProbability"
       @update-random-timing-variation="updateRandomTimingVariation"
       @update-random-velocity-variation="updateRandomVelocityVariation"
-      @update-random-tone-variation="updateRandomToneVariation"
+      @update-random-tone-mode="updateRandomToneMode"
       @update-random-chord-probability="updateRandomChordProbability"
+      @update-random-chord-velocity-damping="updateRandomChordVelocityDamping"
       @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
@@ -142,10 +144,12 @@ const {
   toggleMicrotones,
   toggleReduceNotes,
   updateRandomNoteProbability,
+  updateRandomPauseProbability,
   updateRandomTimingVariation,
   updateRandomVelocityVariation,
-  updateRandomToneVariation,
+  updateRandomToneMode,
   updateRandomChordProbability,
+  updateRandomChordVelocityDamping,
   cycleStep,
   updateVelocity,
   randomizeVelocities,
