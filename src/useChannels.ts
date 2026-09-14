@@ -663,7 +663,7 @@ export function useChannels() {
   }
 
   function persistArrangementSlotState(channel: Channel) {
-    if (getEditableArrangementState(channel)) return
+    if (channel.playbackMode !== 'arrangement' || getEditableArrangementState(channel)) return
     const rowIndex = channel.arrangementRowIndex
     const slotIndex = channel.arrangementIndex
     if (rowIndex === null || slotIndex === null) return
@@ -2128,15 +2128,19 @@ export function useChannels() {
     setArrangementSlot(channelIndex, rowIndex, slotIndex, null)
   }
 
-  function moveArrangementSlotToStoredState(channelIndex: number, rowIndex: number, slotIndex: number, _targetStateIndex: number) {
+  function moveArrangementSlotToStoredState(channelIndex: number, rowIndex: number, slotIndex: number, targetStateIndex: number) {
     const channel = channels[channelIndex]
     const sourceStateIndex = channel?.arrangementRows[rowIndex]?.[slotIndex]
-    if (!channel || !isValidStoredStateIndex(sourceStateIndex)) return
+    if (!channel ||
+        !isValidStoredStateIndex(sourceStateIndex) ||
+        !isValidStoredStateIndex(targetStateIndex)) return
 
     const sourceState = storedStates.value[channelIndex][sourceStateIndex]
     if (!sourceState) return
+    storedStates.value[channelIndex][targetStateIndex] = cloneStoredState(sourceState)
+    storedStateDirty.value[channelIndex][targetStateIndex] = false
     channel.arrangementRows[rowIndex][slotIndex] = null
-    activeStoredStateIndexes.value[channelIndex] = sourceStateIndex
+    activeStoredStateIndexes.value[channelIndex] = targetStateIndex
     const selectedSlot = selectedArrangementSlots.value[channelIndex]
     if (selectedSlot.rowIndex === rowIndex && selectedSlot.slotIndex === slotIndex) {
       selectedArrangementSlots.value[channelIndex] = { rowIndex: null, slotIndex: null }
