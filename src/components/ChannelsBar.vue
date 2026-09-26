@@ -1,22 +1,25 @@
 <template>
-  <div class="channels">
-    <div v-for="(ch, i) in channels" :key="ch.id" class="channel" :class="{selected: i === currentIndex}">
-      <button draggable="true" @click="$emit('select', i)" @dragstart="startDrag(i, $event)" @dragover.prevent @drop.prevent="dropOnChannel(i, $event)" class="ch-select" :class="{ active: ch.active }" :style="{ background: ch.active ? ch.color : '' }">
-        {{ ch.name }}
-      </button>
-      <button @click.stop="$emit('toggle', i)" :class="{playing: ch.playing}">{{
-          ch.playing ? 'Stop' : 'Start'
-        }}
-      </button>
-      <button @click.stop="$emit('toggle-mute', i)" :class="{muted: ch.muted}">
-        {{ ch.muted ? 'Unmute' : 'Mute' }}
-      </button>
-      <label class="midi-channel-control">MIDI channel
-        <span><input type="number" :value="ch.midiChannel" min="1" max="16" @click.stop @input.stop="$emit('update-midi-channel', i, +$event.target.value)" /><small>CH</small></span>
-      </label>
-      <label class="tempo-control">Tempo
-        <span><input type="number" :value="ch.bpm" min="20" max="300" @input="$emit('update-bpm', i, +$event.target.value)" /><small>BPM</small></span>
-      </label>
+  <div class="channels-bar">
+    <div class="channels-bar-heading">
+      <div class="channel-actions">
+        <button class="add-channel" type="button" aria-label="Add channel" title="Add channel" @click="$emit('add')">+</button>
+        <button class="remove-channel" type="button" aria-label="Remove selected channel" title="Remove selected channel" :disabled="channels.length <= 1" @click="$emit('remove-selected')">−</button>
+      </div>
+    </div>
+    <div class="channels">
+      <div v-for="(ch, i) in channels" :key="ch.id" class="channel" :class="{selected: i === currentIndex}">
+        <button draggable="true" @click="$emit('select', i)" @dragstart="startDrag(i, $event)" @dragover.prevent @drop.prevent="dropOnChannel(i, $event)" class="ch-select" :class="{ active: ch.active }" :style="{ background: ch.active ? ch.color : '' }">
+          {{ ch.name }}
+        </button>
+        <button @click.stop="$emit('toggle', i)" :class="{playing: ch.playing}">{{ ch.playing ? 'Stop' : 'Start' }}</button>
+        <button @click.stop="$emit('toggle-mute', i)" :class="{muted: ch.muted}">{{ ch.muted ? 'Unmute' : 'Mute' }}</button>
+        <label class="midi-channel-control">MIDI channel
+          <span><input type="number" :value="ch.midiChannel" min="1" max="16" @click.stop @input.stop="$emit('update-midi-channel', i, +$event.target.value)" /><small>CH</small></span>
+        </label>
+        <label class="tempo-control">Tempo
+          <span><input type="number" :value="ch.bpm" min="20" max="300" @input="$emit('update-bpm', i, +$event.target.value)" /><small>BPM</small></span>
+        </label>
+      </div>
     </div>
   </div>
 </template>
@@ -24,6 +27,8 @@
 <script setup lang="ts">
 const emit = defineEmits<{
   (event: 'select', index: number): void
+  (event: 'add'): void
+  (event: 'remove-selected'): void
   (event: 'copy-channel', sourceIndex: number, targetIndex: number): void
   (event: 'toggle-mute', index: number): void
 }>()
@@ -51,6 +56,32 @@ function dropOnChannel(targetIndex: number, event: DragEvent) {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.channels-bar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: .6rem;
+}
+.channel-actions { display: flex; gap: .4rem; }
+.add-channel, .remove-channel {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--teal-soft);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.add-channel { color: var(--teal-soft); }
+.remove-channel { color: var(--coral-soft); }
+.add-channel:hover:not(:disabled) { background: var(--teal-deep); }
+.remove-channel:hover:not(:disabled) { background: var(--coral-deep); }
+.channel-actions button:disabled { opacity: .4; cursor: not-allowed; }
 
 .channel {
   display: flex;

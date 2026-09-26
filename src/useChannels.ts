@@ -1,9 +1,9 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import { BROADCAST_OUTPUT_ID, clearScheduledOutput, initMidi, listOutputs, listInputs, getOutput, getInput, listenToInputMessages, selectOutput, sendNote, enableSineSynth, disableSineSynth, SINE_OUTPUT_ID } from './midi/midi'
 import { BROADCAST_CLOCK_ID, BROADCAST_CLOCK_NAME, createMidiClockInput, createMidiClockOutput, isBroadcastClockAvailable } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, RandomToneMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, CHANNEL_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 import { createMidiMixDefaultMappings, decodeMidiLearnMessage, isMidiLearnBinding, MidiLearnBinding, midiLearnBindingMatchesMessage, midiLearnMessageLabel, sanitizeMidiLearnBindings } from './midi/midiLearn'
@@ -123,7 +123,7 @@ export function useChannels() {
     )
   }
 
-  const channels = Array.from({length: CHANNEL_COUNT}, (_, index)=> createChannel(index, selectedOutputId, log, handleChannelLoop))
+  const channels = reactive([createChannel(0, selectedOutputId, log, handleChannelLoop)])
   const currentIndex = ref(0)
   const currentChannel = computed(() => channels[currentIndex.value])
   const allMuted = computed(() => channels.every(channel => channel.muted))
@@ -406,6 +406,38 @@ export function useChannels() {
   }
 
   function selectChannel(index:number){ currentIndex.value = index }
+  function addChannel() {
+    const index = channels.length
+    const channel = createChannel(index, selectedOutputId, log, handleChannelLoop)
+    channel.muted = true
+    channels.push(channel)
+    storedStates.value.push(Array.from({ length: STORED_STATE_COUNT }, () => null))
+    activeStoredStateIndexes.value.push(0)
+    storedStateDirty.value.push(Array.from({ length: STORED_STATE_COUNT }, () => false))
+    activeArrangementStateIndexes.value.push(null)
+    selectedArrangementSlots.value.push({ rowIndex: null, slotIndex: null })
+    currentIndex.value = index
+    randomizeChannelTiming(channel)
+    createVariation(index)
+    storedStates.value[index][0] = snapshotChannelState(channel)
+  }
+  function removeSelectedChannel() {
+    if (channels.length <= 1) return
+    const removedIndex = currentIndex.value
+    const removedChannel = channels[removedIndex]
+    removedChannel.arpeggiator.stop()
+    channels.splice(removedIndex, 1)
+    storedStates.value.splice(removedIndex, 1)
+    activeStoredStateIndexes.value.splice(removedIndex, 1)
+    storedStateDirty.value.splice(removedIndex, 1)
+    activeArrangementStateIndexes.value.splice(removedIndex, 1)
+    selectedArrangementSlots.value.splice(removedIndex, 1)
+    currentIndex.value = Math.min(removedIndex, channels.length - 1)
+    channels.forEach((channel, index) => {
+      channel.id = index
+      channel.name = `Ch ${index + 1}`
+    })
+  }
   function toggleChannelPlay(index:number){
     const channel = channels[index]
     if (channel.playing) {
@@ -1010,38 +1042,38 @@ export function useChannels() {
   }
 
   function initializeRandomState() {
-    const patterns: Pattern[] = ['up', 'down', 'updown', 'random']
-    const quantisations = [3, 4, 6, 8, 9, 12, 16]
-    const randomOctaves = ARPEGGIO_OCTAVES.filter(octave => octave >= 3 && octave <= 6)
-    const randomNoteLengths = [3, 6, 8, 16]
     const randomBpm = 80 + Math.floor(Math.random() * 51)
     const randomKey = KEYS[Math.floor(Math.random() * KEYS.length)]
 
     setGlobalBpm(randomBpm)
     updateGlobalKey(randomKey.name)
-    channels.forEach(channel => {
-      const pattern = patterns[Math.floor(Math.random() * patterns.length)]
-      const quantisation = quantisations[Math.floor(Math.random() * quantisations.length)]
-      const noteLength = randomNoteLengths[Math.floor(Math.random() * randomNoteLengths.length)]
-      const octave = randomOctaves[Math.floor(Math.random() * randomOctaves.length)]
-      const arpeggioLength = 1 + Math.floor(Math.random() * 8)
-      const loopLength = 8 + Math.floor(Math.random() * 9)
-      channel.pattern = pattern
-      channel.quantisation = quantisation
-      channel.noteLength = noteLength
-      channel.octave = octave
-      channel.selectedOctaves = [octave]
-      channel.arpeggioLength = arpeggioLength
-      channel.loopLength = loopLength
-      channel.arpeggiator.setPattern(pattern)
-      channel.arpeggiator.setSubdivision(quantisation)
-      channel.arpeggiator.setNoteLength(noteLength)
-      channel.arpeggiator.setLoopLength(loopLength)
-    })
+    channels.forEach(randomizeChannelTiming)
     createGlobalVariation()
     channels.forEach((channel, index) => {
       storedStates.value[index][0] = snapshotChannelState(channel)
     })
+  }
+
+  function randomizeChannelTiming(channel: Channel) {
+    const patterns: Pattern[] = ['up', 'down', 'updown', 'random']
+    const quantisations = [3, 4, 6, 8, 9, 12, 16]
+    const randomOctaves = ARPEGGIO_OCTAVES.filter(octave => octave >= 3 && octave <= 6)
+    const randomNoteLengths = [3, 6, 8, 16]
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)]
+    const quantisation = quantisations[Math.floor(Math.random() * quantisations.length)]
+    const noteLength = randomNoteLengths[Math.floor(Math.random() * randomNoteLengths.length)]
+    const octave = randomOctaves[Math.floor(Math.random() * randomOctaves.length)]
+    channel.pattern = pattern
+    channel.quantisation = quantisation
+    channel.noteLength = noteLength
+    channel.octave = octave
+    channel.selectedOctaves = [octave]
+    channel.arpeggioLength = 1 + Math.floor(Math.random() * 8)
+    channel.loopLength = 8 + Math.floor(Math.random() * 9)
+    channel.arpeggiator.setPattern(pattern)
+    channel.arpeggiator.setSubdivision(quantisation)
+    channel.arpeggiator.setNoteLength(noteLength)
+    channel.arpeggiator.setLoopLength(channel.loopLength)
   }
 
   function playKeyboardNote(key: string) {
@@ -1909,6 +1941,7 @@ export function useChannels() {
     const seed = decodeSeed(seedKey.trim())
     if (!seed) return 'Invalid seed key'
 
+    stopAll()
     setGlobalBpm(seed.globalBpm)
     updateGlobalKey(seed.globalKey)
     storedStates.value = seed.storedStates.map(states => {
@@ -2192,6 +2225,8 @@ export function useChannels() {
     toggleGlobalPlay,
     stopAll,
     selectChannel,
+    addChannel,
+    removeSelectedChannel,
     toggleChannelPlay,
     toggleMute,
     toggleMuteAll,

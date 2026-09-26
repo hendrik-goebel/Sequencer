@@ -24,7 +24,7 @@
 
 
     <section class="module channel-module">
-      <ChannelsBar :channels="channels" :currentIndex="currentIndex" @select="selectChannel" @copy-channel="copyChannel" @toggle="toggleChannelPlay" @toggle-mute="toggleMute" @update-midi-channel="updateMidiChannel" @update-bpm="updateChannelBpm" />
+      <ChannelsBar :channels="channels" :currentIndex="currentIndex" @select="selectChannel" @add="addChannel" @remove-selected="removeSelectedChannel" @copy-channel="copyChannel" @toggle="toggleChannelPlay" @toggle-mute="toggleMute" @update-midi-channel="updateMidiChannel" @update-bpm="updateChannelBpm" />
     </section>
 
 
@@ -101,7 +101,7 @@
       <h2>SEED</h2>
       <textarea v-model="seedKey" aria-label="Seed key" placeholder="Generate a seed key or paste one here"></textarea>
       <div class="seed-actions">
-        <button class="seed-generate" @click="seedKey = createSeed(); seedStatus = 'Seed generated'">Generate</button>
+        <button class="seed-generate" @click="generateSeed">Generate</button>
         <button class="seed-copy" @click="copySeed">Copy</button>
         <button class="seed-load" @click="seedStatus = loadSeed(seedKey) ?? 'Seed loaded'">Load</button>
         <span v-if="seedStatus" class="seed-status">{{ seedStatus }}</span>
@@ -134,6 +134,8 @@ const {
   toggleGlobalPlay,
   createGlobalVariation,
   selectChannel,
+  addChannel,
+  removeSelectedChannel,
   toggleChannelPlay,
   toggleMute,
   toggleMuteAll,
@@ -229,6 +231,71 @@ const seedStatus = ref('')
 const globalActions = ref(false)
 const midiLearnModalOpen = ref(false)
 
+const SEED_PROTOCOL = 'synth2.seed.v1'
+
+function generateSeed() {
+  try {
+    seedKey.value = createSeed()
+    seedStatus.value = 'Seed generated'
+    return seedKey.value
+  } catch (error: unknown) {
+    seedStatus.value = error instanceof Error ? `Could not generate seed: ${error.message}` : 'Could not generate seed'
+    return null
+  }
+}
+
+function handleSeedMessage(event: MessageEvent) {
+  const trustedWindow = window.parent !== window ? window.parent : window.opener
+  if (!trustedWindow || event.source !== trustedWindow || event.origin === 'null' || !event.origin) return
+  const data: unknown = event.data
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return
+
+  const request = data as Record<string, unknown>
+  if (request.protocol !== SEED_PROTOCOL || !['ready', 'load', 'export'].includes(String(request.type))) return
+  if (typeof request.requestId !== 'string' || request.requestId.trim().length === 0) return
+
+  const action = request.type as 'ready' | 'load' | 'export'
+  const respond = (ok: boolean, extra: Record<string, unknown> = {}) => {
+    trustedWindow.postMessage({ protocol: SEED_PROTOCOL, type: 'response', requestId: request.requestId, action, ok, ...extra }, event.origin)
+  }
+
+  if (action === 'ready') {
+    respond(true)
+    return
+  }
+
+  if (action === 'load') {
+    if (typeof request.seed !== 'string' || request.seed.trim().length === 0) {
+      seedStatus.value = 'Invalid seed key'
+      respond(false, { error: { code: 'INVALID_REQUEST', message: 'A non-empty seed string is required.' } })
+      return
+    }
+    try {
+      const error = loadSeed(request.seed)
+      if (error) {
+        seedStatus.value = error
+        respond(false, { error: { code: 'LOAD_FAILED', message: 'This seed has an invalid setup.' } })
+        return
+      }
+      seedKey.value = request.seed
+      seedStatus.value = 'Seed loaded'
+      respond(true)
+    } catch {
+      seedStatus.value = 'Could not load seed'
+      respond(false, { error: { code: 'LOAD_FAILED', message: 'This seed could not be applied.' } })
+    }
+    return
+  }
+
+  try {
+    const seed = generateSeed()
+    if (!seed) throw new Error('Seed generation failed')
+    respond(true, { seed })
+  } catch {
+    respond(false, { error: { code: 'EXPORT_FAILED', message: 'The current setup could not be exported.' } })
+  }
+}
+
 function toggleGlobalActions() {
   globalActions.value = !globalActions.value
 }
@@ -236,6 +303,8 @@ function toggleGlobalActions() {
 function openMidiLearn() {
   midiLearnModalOpen.value = true
 }
+
+onMounted(() => window.addEventListener('message', handleSeedMessage))
 
 async function copySeed() {
   const seed = seedKey.value.trim()

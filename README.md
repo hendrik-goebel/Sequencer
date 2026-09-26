@@ -2,6 +2,18 @@ Web Arpeggiator (Vue 3 + TypeScript)
 
 See [Broadcast MIDI protocol](docs/broadcast-midi-protocol.md) for consuming its cross-tab clock and note messages from another app.
 
+## Container seed integration
+
+An iframe's immediate parent, or a top-level window's opener, can use the
+`synth2.seed.v1` `postMessage` protocol to check readiness, load a seed, and
+export the current setup. Wait for the iframe `load` event and then request
+`ready`; for a popup, poll `ready` until it responds. Send messages to the exact
+Synth2 origin and validate both `event.source` and `event.origin` on responses.
+Seed strings are opaque and should be stored unchanged. The `load` request
+replaces the setup and stops playing notes; `export` snapshots the live controls.
+See the container integration specification for request and response examples,
+timeouts, and iframe security requirements.
+
 Quick start:
 
 1. npm install
