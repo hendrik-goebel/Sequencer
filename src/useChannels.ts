@@ -2044,6 +2044,42 @@ export function useChannels() {
     }
   }
 
+  function concatStoredStateWithPrevious() {
+    const channelIndex = currentIndex.value
+    const currentStateIndex = activeStoredStateIndexes.value[channelIndex]
+    if (currentStateIndex === null || currentStateIndex === undefined || currentStateIndex <= 0) return
+    const states = storedStates.value[channelIndex]
+    const previousStateIndex = currentStateIndex - 1
+    const previousState = states[previousStateIndex]
+    const currentState = states[currentStateIndex]
+    if (!previousState || !currentState) return
+
+    const combinedLength = previousState.loopLength + currentState.loopLength
+    if (combinedLength > MAX_LOOP_LENGTH) return
+
+    const steps = (state: StoredArpeggiatorState) => Array.from(
+      { length: state.loopLength },
+      (_, index) => cloneStep(state.steps[index] ?? -1)
+    )
+    const velocities = (state: StoredArpeggiatorState) => Array.from(
+      { length: state.loopLength },
+      (_, index) => state.velocities?.[index] ?? MIDI.VELOCITY_MAX
+    )
+    const combinedState: StoredArpeggiatorState = {
+      ...cloneStoredState(previousState)!,
+      loopLength: combinedLength,
+      steps: [...steps(previousState), ...steps(currentState)],
+      velocities: [...velocities(previousState), ...velocities(currentState)]
+    }
+
+    states[previousStateIndex] = combinedState
+    states[currentStateIndex] = null
+    storedStateDirty.value[channelIndex][previousStateIndex] = false
+    storedStateDirty.value[channelIndex][currentStateIndex] = false
+    activeStoredStateIndexes.value[channelIndex] = previousStateIndex
+    applyChannelState(currentChannel.value, combinedState)
+  }
+
   function copyStoredState(channelIndex: number, fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex || !isValidStoredStateIndex(fromIndex) || !isValidStoredStateIndex(toIndex)) return
     const sourceState = storedStates.value[channelIndex]?.[fromIndex]
@@ -2327,6 +2363,7 @@ export function useChannels() {
     storeCurrentStateNew,
     applyStoredState,
     clearStoredState,
+    concatStoredStateWithPrevious,
     copyStoredState,
     addStoredStateRow,
     storeAllStates,

@@ -51,7 +51,7 @@
       @update-random-tone-mode="updateRandomToneMode"
       @update-random-chord-probability="updateRandomChordProbability"
       @update-random-chord-velocity-damping="updateRandomChordVelocityDamping"
-      @store-state="handleStoreState" @store-new-state="handleStoreNewState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
+      @store-state="handleStoreState" @store-new-state="handleStoreNewState" @concat-stored-state="concatStoredStateWithPrevious" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
@@ -206,6 +206,7 @@ const {
   storeCurrentStateNew,
   applyStoredState,
   clearStoredState,
+  concatStoredStateWithPrevious,
   storeAllStates,
   storeAllStatesNew,
   applyAllStoredStates,
