@@ -183,9 +183,9 @@ export function createArpeggiator() {
       : Math.min(noteIndex, notes.length - 1)
   }
   function setNoteLength(ms:number){ noteLength = ms }
-  function setSteps(s: StepValue[]){
+  function setSteps(s: StepValue[], positionScale = 1){
     steps = s
-    stepPointer = stepPointer % Math.max(1, steps.length || loopLength)
+    stepPointer = (stepPointer * positionScale) % Math.max(1, steps.length || loopLength)
   }
   function setVelocities(v: number[]){ velocities = v }
   function setSubdivision(n:number){

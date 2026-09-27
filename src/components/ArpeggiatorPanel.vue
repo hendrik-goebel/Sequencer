@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, KEYS, MICROTONAL_STEP, NO_KEY, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, KEYS, MAX_LOOP_LENGTH, MICROTONAL_STEP, NO_KEY, NOTE_LENGTH_OPTIONS } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -67,6 +67,7 @@ const emit = defineEmits<{
   (event: 'move-arrangement-slot-to-state', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
   (event: 'copy-stored-state', payload: { fromIndex: number, toIndex: number }): void
   (event: 'add-stored-state-row'): void
+  (event: 'zoom-grid'): void
   (event: 'add-arrangement-row'): void
 }>()
 
@@ -349,6 +350,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
         <button class="store-button" @click="$emit('store-new-state')">Save new</button>
         <button class="store-button" @click="$emit('concat-stored-state')">Concat</button>
         <button class="add-state-row-button" @click="$emit('add-stored-state-row')">Add row</button>
+        <button type="button" class="zoom-button store-button" :disabled="visualChannel.quantisation * 2 > 64 || visualChannel.loopLength * 2 > MAX_LOOP_LENGTH" title="Double grid resolution while preserving note timing" @click="$emit('zoom-grid')">zoom</button>
       </div>
     </div>
     <PatternArranger
@@ -530,6 +532,7 @@ select:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgb
   cursor: pointer;
 }
 .store-button { border-color: var(--teal); color: var(--teal-soft); background: var(--teal-deep); }
+.zoom-button:disabled { opacity: .45; cursor: not-allowed; }
 .variation-button { border-color: var(--lavender); color: var(--lavender); background: var(--lavender-deep); }
 .stored-states {
   display: grid;

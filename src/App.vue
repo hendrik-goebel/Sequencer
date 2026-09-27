@@ -58,6 +58,7 @@
       @move-arrangement-slot-to-state="handleMoveArrangementSlotToState"
       @copy-stored-state="handleCopyStoredState"
       @add-stored-state-row="handleAddStoredStateRow"
+      @zoom-grid="zoomGrid"
       @select-arrangement-row="handleSelectArrangementRow"
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
@@ -190,6 +191,7 @@ const {
   updateLoopLength,
   updateArpeggioLength,
   updateQuantisation,
+  zoomGrid,
   updateArpeggioOctave,
   updateEditorOctaves,
   shiftCurrentChannelNotes: shiftCurrentChannelNotesForChannel,

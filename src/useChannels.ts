@@ -1593,6 +1593,34 @@ export function useChannels() {
     markCurrentStoredStateDirty()
   }
 
+  function zoomGrid() {
+    const channel = currentChannel.value
+    const arrangementState = getEditableArrangementState(channel)
+    const editor = arrangementState ?? channel
+    if (editor.quantisation * 2 > 64 || editor.loopLength * 2 > MAX_LOOP_LENGTH) return
+
+    const steps: StepValue[] = []
+    const velocities: number[] = []
+    for (let index = 0; index < editor.loopLength; index++) {
+      // Sustained durations multiply noteLength, so keep them unchanged.
+      steps.push(cloneStep(editor.steps[index] ?? -1), -1)
+      velocities.push(editor.velocities?.[index] ?? MIDI.VELOCITY_MAX, MIDI.VELOCITY_MAX)
+    }
+    editor.steps = steps
+    editor.velocities = velocities
+    editor.loopLength *= 2
+    editor.quantisation *= 2
+    if (arrangementState) return
+
+    channel.arpeggiator.setLoopLength(channel.loopLength)
+    channel.arpeggiator.setSteps(channel.steps, 2)
+    channel.arpeggiator.setVelocities(channel.velocities)
+    channel.arpeggiator.setSubdivision(channel.quantisation)
+    if (channel.playStep !== null) channel.playStep *= 2
+    persistArrangementSlotState(channel)
+    markCurrentStoredStateDirty()
+  }
+
   function updateQuantisation(q:number){
     const channel = currentChannel.value
     const newQ = Math.max(1, Math.min(64, Math.floor(q)))
@@ -2345,6 +2373,7 @@ export function useChannels() {
     updateNoteLength,
     updateArpeggioLength,
     updateQuantisation,
+    zoomGrid,
     updateLoopLength,
     updateArpeggioOctave,
     updateEditorOctaves,
