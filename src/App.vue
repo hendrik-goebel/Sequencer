@@ -51,7 +51,7 @@
       @update-random-tone-mode="updateRandomToneMode"
       @update-random-chord-probability="updateRandomChordProbability"
       @update-random-chord-velocity-damping="updateRandomChordVelocityDamping"
-      @store-state="handleStoreState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
+      @store-state="handleStoreState" @store-new-state="handleStoreNewState" @apply-stored-state="handleApplyStoredState" @clear-stored-state="handleClearStoredState"
       @arrangement-assign-slot="handleArrangementAssignSlot"
       @arrangement-move-slot="handleArrangementMoveSlot"
       @arrangement-clear-slot="handleArrangementClearSlot"
@@ -203,9 +203,11 @@ const {
   currentActiveArrangementStateIndex,
   currentSelectedArrangementSlot,
   storeCurrentState,
+  storeCurrentStateNew,
   applyStoredState,
   clearStoredState,
   storeAllStates,
+  storeAllStatesNew,
   applyAllStoredStates,
   clearAllStoredStates,
   setArrangementSlot,
@@ -346,6 +348,11 @@ function handleStoreState() {
   else storeCurrentState()
 }
 
+function handleStoreNewState() {
+  if (globalActions.value) storeAllStatesNew()
+  else storeCurrentStateNew()
+}
+
 function handleApplyStoredState(index: number) {
   if (globalActions.value) applyAllStoredStates(index)
   else applyStoredState(index)
@@ -431,6 +438,7 @@ useKeyboard({
   shiftCurrentChannelNotes: handleShiftNotes,
   shiftCurrentToneMaterial,
   storeState: handleStoreState,
+  storeNewState: handleStoreNewState,
   toggleGlobalActions,
   openMidiLearn,
   playKeyboardNote

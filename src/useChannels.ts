@@ -1886,14 +1886,14 @@ export function useChannels() {
           typeof value.globalKey !== 'string' ||
           (value.globalKey !== NO_KEY && !KEYS.some(key => key.name === value.globalKey)) ||
           typeof value.currentIndex !== 'number' || !Number.isInteger(value.currentIndex) ||
-          !Array.isArray(value.channels) || value.channels.length !== channels.length ||
+          !Array.isArray(value.channels) || value.channels.length < 1 ||
           !value.channels.every(isSeedChannel) ||
-          !Array.isArray(value.storedStates) || value.storedStates.length !== channels.length ||
+          !Array.isArray(value.storedStates) || value.storedStates.length !== value.channels.length ||
           !value.storedStates.every(states => Array.isArray(states) && states.length > 0 && states.every(state => state === null || isStoredState(state))) ||
-          !Array.isArray(value.activeStoredStateIndexes) || value.activeStoredStateIndexes.length !== channels.length ||
+          !Array.isArray(value.activeStoredStateIndexes) || value.activeStoredStateIndexes.length !== value.channels.length ||
           !value.activeStoredStateIndexes.every(index => index === null || (typeof index === 'number' && Number.isInteger(index) && index >= 0)) ||
           (value.version === 2 && 'midiLearn' in value && value.midiLearn !== undefined && !isMidiLearnState(value.midiLearn)) ||
-          value.currentIndex < 0 || value.currentIndex >= channels.length) {
+          value.currentIndex < 0 || value.currentIndex >= value.channels.length) {
         return null
       }
       return value as unknown as AppSeed
@@ -1942,6 +1942,14 @@ export function useChannels() {
     if (!seed) return 'Invalid seed key'
 
     stopAll()
+    while (channels.length < seed.channels.length) {
+      channels.push(createChannel(channels.length, selectedOutputId, log, handleChannelLoop))
+    }
+    while (channels.length > seed.channels.length) channels.pop()
+    channels.forEach((channel, index) => {
+      channel.id = index
+      channel.name = `Ch ${index + 1}`
+    })
     setGlobalBpm(seed.globalBpm)
     updateGlobalKey(seed.globalKey)
     storedStates.value = seed.storedStates.map(states => {
@@ -1951,6 +1959,8 @@ export function useChannels() {
     })
     storedStateDirty.value = storedStates.value.map(states => Array.from({ length: states.length }, () => false))
     activeStoredStateIndexes.value = seed.activeStoredStateIndexes.slice()
+    activeArrangementStateIndexes.value = channels.map(() => null)
+    selectedArrangementSlots.value = channels.map(() => ({ rowIndex: null, slotIndex: null }))
     seed.channels.forEach((state, index) => {
       const channel = channels[index]
       channel.midiChannel = state.midiChannel
@@ -1981,19 +1991,19 @@ export function useChannels() {
     return null
   }
 
-  function selectNextEmptyStoredState(channelIndex: number, storedStateIndex: number) {
+  function findNextEmptyStoredState(channelIndex: number, storedStateIndex: number) {
     const states = storedStates.value[channelIndex]
-    for (let index = storedStateIndex + 1; index < states.length; index++) {
-      if (!states[index]) {
-        activeStoredStateIndexes.value[channelIndex] = index
-        return
-      }
+    for (let offset = 1; offset <= states.length; offset++) {
+      const index = (storedStateIndex + offset) % states.length
+      if (!states[index]) return index
     }
+    return null
   }
 
   function findNextCommonEmptyStoredState(storedStateIndex: number) {
     const maximumStateCount = Math.max(...storedStates.value.map(states => states.length))
-    for (let index = storedStateIndex + 1; index < maximumStateCount; index++) {
+    for (let offset = 1; offset <= maximumStateCount; offset++) {
+      const index = (storedStateIndex + offset) % maximumStateCount
       if (storedStates.value.every(states => !states[index])) return index
     }
     return null
@@ -2004,7 +2014,16 @@ export function useChannels() {
     const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
     storedStates.value[channelIndex][selectedIndex] = snapshotChannelState(currentChannel.value)
     storedStateDirty.value[channelIndex][selectedIndex] = false
-    selectNextEmptyStoredState(channelIndex, selectedIndex)
+  }
+
+  function storeCurrentStateNew() {
+    const channelIndex = currentIndex.value
+    const selectedIndex = activeStoredStateIndexes.value[channelIndex] ?? 0
+    const nextIndex = findNextEmptyStoredState(channelIndex, selectedIndex)
+    if (nextIndex === null) return
+    storedStates.value[channelIndex][nextIndex] = snapshotChannelState(currentChannel.value)
+    storedStateDirty.value[channelIndex][nextIndex] = false
+    activeStoredStateIndexes.value[channelIndex] = nextIndex
   }
 
   function applyStoredState(index: number) {
@@ -2047,10 +2066,17 @@ export function useChannels() {
       storedStateDirty.value[channelIndex][selectedIndex] = false
       activeStoredStateIndexes.value[channelIndex] = selectedIndex
     })
+  }
+
+  function storeAllStatesNew() {
+    const selectedIndex = activeStoredStateIndexes.value[currentIndex.value] ?? 0
     const nextEmptyIndex = findNextCommonEmptyStoredState(selectedIndex)
-    if (nextEmptyIndex !== null) {
-      activeStoredStateIndexes.value = channels.map(() => nextEmptyIndex)
-    }
+    if (nextEmptyIndex === null) return
+    channels.forEach((channel, channelIndex) => {
+      storedStates.value[channelIndex][nextEmptyIndex] = snapshotChannelState(channel)
+      storedStateDirty.value[channelIndex][nextEmptyIndex] = false
+    })
+    activeStoredStateIndexes.value = channels.map(() => nextEmptyIndex)
   }
 
   function applyAllStoredStates(index: number) {
@@ -2298,11 +2324,13 @@ export function useChannels() {
     currentActiveArrangementStateIndex,
     currentSelectedArrangementSlot,
     storeCurrentState,
+    storeCurrentStateNew,
     applyStoredState,
     clearStoredState,
     copyStoredState,
     addStoredStateRow,
     storeAllStates,
+    storeAllStatesNew,
     applyAllStoredStates,
     clearAllStoredStates,
     setArrangementSlot,

@@ -12,6 +12,7 @@ interface KeyboardHandlers {
   shiftCurrentChannelNotes: (direction: 1 | -1) => void
   shiftCurrentToneMaterial: (direction: 1 | -1) => void
   storeState: () => void
+  storeNewState: () => void
   toggleGlobalActions: () => void
   openMidiLearn: () => void
   playKeyboardNote: (key: string) => boolean
@@ -30,6 +31,11 @@ export function useKeyboard(handlers: KeyboardHandlers) {
     }
 
     const key = event.key.toLowerCase()
+    if (event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey && key === 's') {
+      handlers.storeNewState()
+      event.preventDefault()
+      return
+    }
     if (event.metaKey && key === 'm') {
       handlers.toggleMuteAll()
       event.preventDefault()

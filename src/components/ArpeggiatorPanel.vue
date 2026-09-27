@@ -57,6 +57,7 @@ const emit = defineEmits<{
   (event: 'channel-variation'): void
   (event: 'shift-notes', direction: 1 | -1): void
   (event: 'store-state'): void
+  (event: 'store-new-state'): void
   (event: 'apply-stored-state', index: number): void
   (event: 'clear-stored-state', index: number): void
   (event: 'arrangement-assign-slot', payload: { rowIndex: number, slotIndex: number, stateIndex: number }): void
@@ -344,6 +345,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       </div>
       <div class="state-library-actions">
         <button class="store-button" @click="$emit('store-state')">Save</button>
+        <button class="store-button" @click="$emit('store-new-state')">Save new</button>
         <button class="add-state-row-button" @click="$emit('add-stored-state-row')">Add row</button>
       </div>
     </div>
