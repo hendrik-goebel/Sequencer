@@ -28,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'toggle-follow-arrangement-view'): void
   (event: 'toggle-arrangement-playback'): void
+  (event: 'toggle-random-arrangement'): void
   (event: 'toggle-arrangement-reference-mode'): void
   (event: 'select-arrangement-row', rowIndex: number): void
   (event: 'select-arrangement-slot', payload: { rowIndex: number, slotIndex: number }): void
@@ -369,6 +370,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       :selected-arrangement-row-index="selectedArrangementRowIndex"
       :selected-arrangement-slot-index="selectedArrangementSlotIndex"
       :playback-mode="channel.playbackMode"
+      :random-arrangement="channel.randomArrangement"
       :follow-arrangement-view="followArrangementView"
       :max-rows="ARRANGEMENT_ROW_COUNT"
       @assign-slot="$emit('arrangement-assign-slot', $event)"
@@ -378,6 +380,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       @select-slot="$emit('select-arrangement-slot', $event)"
       @add-row="$emit('add-arrangement-row')"
       @toggle-playback-mode="$emit('toggle-arrangement-playback')"
+      @toggle-random-arrangement="$emit('toggle-random-arrangement')"
     />
   </section>
 </template>

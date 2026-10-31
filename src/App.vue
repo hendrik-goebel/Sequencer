@@ -63,6 +63,7 @@
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
       @toggle-arrangement-playback="handleToggleArrangementPlayback"
+      @toggle-random-arrangement="handleToggleRandomArrangement"
       @toggle-arrangement-reference-mode="handleToggleArrangementReferenceMode"
       @toggle-follow-arrangement-view="handleToggleFollowArrangementView"
       />
@@ -223,6 +224,7 @@ const {
   selectArrangementSlot,
   addArrangementRow,
   toggleArrangementPlayback,
+  toggleRandomArrangement,
   toggleArrangementReferenceMode,
   toggleFollowArrangementView,
   setFollowArrangementView,
@@ -417,6 +419,11 @@ function handleAddArrangementRow() {
 function handleToggleArrangementPlayback() {
   if (globalActions.value) channels.forEach((_, index) => toggleArrangementPlayback(index))
   else toggleArrangementPlayback(currentIndex.value)
+}
+
+function handleToggleRandomArrangement() {
+  if (globalActions.value) channels.forEach((_, index) => toggleRandomArrangement(index))
+  else toggleRandomArrangement(currentIndex.value)
 }
 
 function handleToggleArrangementReferenceMode() {

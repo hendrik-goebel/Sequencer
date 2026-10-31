@@ -45,6 +45,7 @@ export interface Channel {
   playbackMode: PlaybackMode
   followArrangementView: boolean
   arrangementReferenceMode: boolean
+  randomArrangement: boolean
   arrangementRows: ArrangementSlot[][]
   arrangementRowIndex: number | null
   arrangementIndex: number | null
@@ -126,6 +127,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     playbackMode: 'state' as PlaybackMode,
     followArrangementView: false,
     arrangementReferenceMode: true,
+    randomArrangement: false,
     arrangementRows: Array.from({ length: 1 }, () =>
       Array.from({ length: ARRANGEMENT_SLOT_COUNT }, () => null)
     ) as ArrangementSlot[][],

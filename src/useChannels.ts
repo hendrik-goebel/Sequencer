@@ -37,6 +37,7 @@ interface SeedChannelState extends StoredArpeggiatorState {
   playbackMode?: PlaybackMode
   followArrangementView?: boolean
   arrangementReferenceMode?: boolean
+  randomArrangement?: boolean
   arrangementSlots?: (number | null)[]
   arrangementRows?: (number | null)[][]
   arrangementRowIndex?: number | null
@@ -281,12 +282,30 @@ export function useChannels() {
       activeArrangementStateIndexes.value[channel.id] = null
       return
     }
-    const nextSlot = findArrangementSlot(channel, channel.arrangementRowIndex, channel.arrangementIndex)
+    const currentRowIndex = channel.arrangementRowIndex
+    const nextSlot = findArrangementSlot(channel, currentRowIndex, channel.arrangementIndex)
     if (nextSlot === null) {
       channel.arrangementIndex = null
       return
     }
+    if (channel.randomArrangement && channel.arrangementIndex !== null && nextSlot <= channel.arrangementIndex) {
+      const playableRows = channel.arrangementRows
+        .map((row, rowIndex) => ({ row, rowIndex }))
+        .filter(({ row }) => row.some(stateIndex => isValidStoredStateIndex(stateIndex) && !!storedStates.value[channel.id][stateIndex]))
+      if (playableRows.length) {
+        const nextRows = playableRows.filter(({ rowIndex }) => rowIndex !== currentRowIndex)
+        const choices = nextRows.length ? nextRows : playableRows
+        channel.arrangementRowIndex = choices[Math.floor(Math.random() * choices.length)].rowIndex
+        primeArrangement(channel)
+        return
+      }
+    }
     applyArrangementSlot(channel, channel.arrangementRowIndex, nextSlot)
+  }
+
+  function toggleRandomArrangement(index: number) {
+    const channel = channels[index]
+    if (channel) channel.randomArrangement = !channel.randomArrangement
   }
 
   function normalizeArrangement(channel: Channel) {
@@ -1817,6 +1836,7 @@ export function useChannels() {
       muted: channel.muted,
       followArrangementView: channel.followArrangementView,
       arrangementReferenceMode: channel.arrangementReferenceMode,
+      randomArrangement: channel.randomArrangement,
       arrangementRows: channel.arrangementRows.map(row => row.slice()),
       arrangementRowIndex: channel.arrangementRowIndex,
       arrangementIndex: channel.arrangementIndex
@@ -1890,6 +1910,7 @@ export function useChannels() {
       typeof value.muted === 'boolean' &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode)) &&
       (!('followArrangementView' in value) || typeof value.followArrangementView === 'boolean') &&
+      (!('randomArrangement' in value) || typeof value.randomArrangement === 'boolean') &&
       (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && ([8, STORED_STATE_COUNT, ARRANGEMENT_SLOT_COUNT].includes(value.arrangementSlots.length)) && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
       (!('arrangementRows' in value) || (Array.isArray(value.arrangementRows) && value.arrangementRows.length >= 1 && value.arrangementRows.length <= ARRANGEMENT_ROW_COUNT && value.arrangementRows.every(row => Array.isArray(row) && row.length === ARRANGEMENT_SLOT_COUNT && row.every(slot => slot === null || isValidStoredStateIndex(slot))))) &&
       (!('arrangementRowIndex' in value) || value.arrangementRowIndex === null || (typeof value.arrangementRowIndex === 'number' && Number.isInteger(value.arrangementRowIndex) && value.arrangementRowIndex >= 0 && value.arrangementRowIndex < ARRANGEMENT_ROW_COUNT)) &&
@@ -1998,6 +2019,7 @@ export function useChannels() {
       channel.playbackMode = state.playbackMode ?? 'state'
       channel.followArrangementView = state.followArrangementView ?? false
       channel.arrangementReferenceMode = state.arrangementReferenceMode ?? true
+      channel.randomArrangement = state.randomArrangement ?? false
       channel.arrangementRows = createArrangementRows(state.arrangementRows, state.arrangementSlots)
       channel.arrangementRowIndex = typeof state.arrangementRowIndex === 'number'
         ? Math.max(0, Math.min(ARRANGEMENT_ROW_COUNT - 1, Math.floor(state.arrangementRowIndex)))
@@ -2201,6 +2223,7 @@ export function useChannels() {
     target.playbackMode = source.playbackMode
     target.followArrangementView = source.followArrangementView
     target.arrangementReferenceMode = source.arrangementReferenceMode
+    target.randomArrangement = source.randomArrangement
     target.arrangementRows = source.arrangementRows.map(row => row.slice())
     target.arrangementRowIndex = source.arrangementRowIndex
     target.arrangementIndex = source.arrangementIndex
@@ -2411,6 +2434,7 @@ export function useChannels() {
     selectArrangementSlot,
     setPlaybackMode,
     toggleArrangementPlayback,
+    toggleRandomArrangement,
     toggleArrangementReferenceMode,
     toggleFollowArrangementView,
     setFollowArrangementView,
