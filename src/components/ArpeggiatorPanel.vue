@@ -4,7 +4,7 @@ import StepsGrid from './StepsGrid.vue'
 import StepperControl from './StepperControl.vue'
 import VerticalSlider from './VerticalSlider.vue'
 import PatternArranger from './PatternArranger.vue'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, KEYS, MAX_LOOP_LENGTH, MICROTONAL_STEP, NO_KEY, NOTE_LENGTH_OPTIONS } from '../config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, DEFAULT_BASE, KEYBOARD_OCTAVE_SIZE, KEYS, MAX_LOOP_LENGTH, MICROTONAL_STEP, NO_KEY, NOTE_LENGTH_OPTIONS, SCALES } from '../config'
 import { StoredArpeggiatorState } from '../models/channel'
 import { getToneMaterials } from '../utils/toneMaterial'
 
@@ -39,6 +39,7 @@ const emit = defineEmits<{
   (event: 'toggle-play'): void
   (event: 'enable-midi'): void
   (event: 'update-key', value: string): void
+  (event: 'update-scale', value: string): void
   (event: 'update-material-amount', value: number): void
   (event: 'update-pattern', value: any): void
   (event: 'update-noteLength', value: number): void
@@ -106,10 +107,13 @@ const toneMaterialNotes = computed(() => visualChannel.value
   ? getToneMaterials(visualChannel.value, visualChannel.value.selectedOctaves)
   : [])
 const fullNotes = computed(() => {
-  const step = visualChannel.value?.microtonesEnabled ? MICROTONAL_STEP : 1
+  const selectedScale = SCALES[visualChannel.value?.scale ?? 'major']
+  const scaleHasMicrotones = selectedScale.offsets.some(offset => !Number.isInteger(offset))
+  const showMicrotones = visualChannel.value?.microtonesEnabled || scaleHasMicrotones
+  const step = showMicrotones ? MICROTONAL_STEP : 1
   return ARPEGGIO_OCTAVES.flatMap(octave => {
     const octaveBase = KEYBOARD_OCTAVE_SIZE * (octave + 1)
-    const length = visualChannel.value?.microtonesEnabled
+    const length = showMicrotones
       ? KEYBOARD_OCTAVE_SIZE * 2
       : KEYBOARD_OCTAVE_SIZE
     return Array.from({ length }, (_, i) => octaveBase + i * step)
@@ -196,6 +200,11 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
             <option v-for="key in KEYS" :key="key.name" :value="key.name">{{ key.name }}</option>
           </select>
         </label>
+        <label>Scale
+          <select :value="visualChannel.scale" @change="$emit('update-scale', ($event.target as HTMLSelectElement).value)">
+            <option v-for="(scale, name) in SCALES" :key="name" :value="name">{{ scale.label }}</option>
+          </select>
+        </label>
         <label>Amount
           <StepperControl :value="visualChannel.materialAmount ? visualChannel.materialAmount : '-'" :values="['-', 1, 2, 3, 4, 5, 6, 7]" @update:value="$emit('update-material-amount', $event === '-' ? 0 : +$event)" />
         </label>
@@ -220,7 +229,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       <button type="button" class="microtones-button" :class="{ active: visualChannel.microtonesEnabled }" :aria-pressed="visualChannel.microtonesEnabled" @click="$emit('toggle-microtones')">micro</button>
       <button type="button" class="reduce-button" :class="{ active: visualChannel.reduceNotes }" :aria-pressed="visualChannel.reduceNotes" @click="$emit('toggle-reduce-notes')">reduce</button>
       <div class="note-grid-scroll">
-        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :material-amount="visualChannel.materialAmount" :material-pitch-classes="visualChannel.materialPitchClasses" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
+        <StepsGrid :notes="displayedNotes" :steps="visualChannel.steps" :base="visualChannel.base" :key-root="visualChannel.key" :scale="visualChannel.scale" :material-amount="visualChannel.materialAmount" :material-pitch-classes="visualChannel.materialPitchClasses" :microtones-enabled="visualChannel.microtonesEnabled" :additional-notes="visualChannel.additionalNotes" :excluded-notes="visualChannel.excludedNotes" :play-step="visualChannel.playStep" :step-count="visualChannel.loopLength" @toggle-tone-material="$emit('toggle-tone-material', $event)" @toggle-step="$emit('cycle-step', $event)" />
       </div>
       <div class="velocity-row">
         <span class="velocity-label">VELOCITY</span>

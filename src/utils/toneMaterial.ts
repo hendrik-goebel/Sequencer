@@ -1,4 +1,4 @@
-import { KEYS, MAJOR_SCALE_OFFSETS, NO_KEY } from '../config'
+import { KEYS, MAJOR_SCALE_OFFSETS, NO_KEY, SCALES, ScaleName } from '../config'
 
 export interface ToneMaterialSource {
   key: string
@@ -8,6 +8,7 @@ export interface ToneMaterialSource {
   excludedNotes: number[]
   materialAmount?: number
   materialPitchClasses?: number[]
+  scale?: ScaleName
 }
 
 export function getToneMaterials(channel: ToneMaterialSource, octaves = [channel.octave]) {
@@ -19,11 +20,12 @@ export function getToneMaterials(channel: ToneMaterialSource, octaves = [channel
   const keyPitches = activeOctaves.flatMap(octave => {
     if (channel.key === NO_KEY || keyPitchClass === undefined) return []
     const octaveBase = 12 * (octave + 1)
+    const scalePitchClasses = SCALES[channel.scale ?? 'major'].offsets
+      .map(offset => (keyPitchClass + offset) % 12)
     const materialPitchClasses = channel.materialAmount === 0
       ? undefined
       : channel.materialPitchClasses
-    return MAJOR_SCALE_OFFSETS
-      .map(offset => (keyPitchClass + offset) % 12)
+    return scalePitchClasses
       .filter(pitchClass => !materialPitchClasses || materialPitchClasses.includes(pitchClass))
       .map(pitchClass => octaveBase + pitchClass)
   })

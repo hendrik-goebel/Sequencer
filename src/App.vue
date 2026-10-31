@@ -40,7 +40,7 @@
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
       :selected-arrangement-row-index="currentSelectedArrangementSlot.rowIndex"
       :selected-arrangement-slot-index="currentSelectedArrangementSlot.slotIndex"
-      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @randomize-velocities="randomizeVelocities" @toggle-play="togglePlay" @enable-midi="enableMidi" @update-key="updateChannelKey(currentIndex, $event)" @update-material-amount="updateMaterialAmount"
+      @toggle-tone-material="toggleToneMaterial" @cycle-step="cycleStep" @update-velocity="updateVelocity" @randomize-velocities="randomizeVelocities" @toggle-play="togglePlay" @enable-midi="enableMidi" @update-key="updateChannelKey(currentIndex, $event)" @update-scale="currentChannel.scale = $event; currentChannel.materialAmount = 0" @update-material-amount="updateMaterialAmount"
       @update-pattern="updatePattern" @update-noteLength="updateNoteLength" @update-octaves="updateEditorOctaves" @clear-notes="clearNotes" @update-loop-length="updateLoopLength" @update-quant="updateQuantisation"
       @update-arpeggio-length="updateArpeggioLength" @channel-variation="handleVariation" @shift-notes="handleShiftNotes" @toggle-global-actions="toggleGlobalActions"
       @toggle-microtones="toggleMicrotones" @toggle-reduce-notes="toggleReduceNotes"

@@ -1,7 +1,7 @@
 import { markRaw, reactive, Ref } from 'vue'
 import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, KEYS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, KEYS, MAJOR_SCALE_OFFSETS, SCALES, ScaleName, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
 import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
@@ -40,6 +40,7 @@ export interface Channel {
   midiChannel: number
   quantisation: number
   key: CircleOfFifthsKey
+  scale: ScaleName
   microtonesEnabled: boolean
   playbackMode: PlaybackMode
   followArrangementView: boolean
@@ -73,6 +74,7 @@ export interface StoredArpeggiatorState {
   arpeggioLength: number
   quantisation: number
   key: CircleOfFifthsKey
+  scale?: ScaleName
   microtonesEnabled?: boolean
   playbackMode?: PlaybackMode
   followArrangementView?: boolean
@@ -119,6 +121,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     midiChannel: index + 1,
     quantisation: DEFAULT_QUANT,
     key: 'C' as CircleOfFifthsKey,
+    scale: 'major' as ScaleName,
     microtonesEnabled: false,
     playbackMode: 'state' as PlaybackMode,
     followArrangementView: false,
@@ -147,7 +150,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     const diatonicNotes = keyPitchClass === null
       ? materialNotes
       : activeOctaves.flatMap(octave =>
-        MAJOR_SCALE_OFFSETS.map(offset => 12 * (octave + 1) + (keyPitchClass + offset) % 12)
+        SCALES[channel.scale].offsets.map(offset => 12 * (octave + 1) + (keyPitchClass + offset) % 12)
       )
     const chromaticNotes = activeOctaves.flatMap(octave =>
       Array.from({ length: 12 }, (_, index) => 12 * (octave + 1) + index)

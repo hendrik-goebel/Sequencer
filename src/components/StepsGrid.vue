@@ -16,10 +16,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { KEYS, NO_KEY, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, MAJOR_SCALE_OFFSETS } from '../config'
+import { KEYS, NO_KEY, STEP_COUNT, NOTE_NAMES, OCTAVE_OFFSET, DEFAULT_BASE, SCALES, ScaleName } from '../config'
 import { isSustainedStep, StepValue, stepNotes } from '../models/arpeggiator'
 
-const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, materialAmount?: number, materialPitchClasses?: number[], microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
+const props = defineProps<{ notes: number[], steps: StepValue[] | undefined, base?: number, keyRoot?: string, scale?: ScaleName, materialAmount?: number, materialPitchClasses?: number[], microtonesEnabled?: boolean, additionalNotes?: number[], excludedNotes?: number[], playStep?: number, stepCount?: number }>()
 
 const emit = defineEmits<{
   (event: 'toggle-tone-material', note: number): void
@@ -30,7 +30,7 @@ const base = props.base ?? DEFAULT_BASE
 const keyPitchClass = computed(() => KEYS.find(key => key.name === props.keyRoot)?.pitchClass ?? null)
 const keyPitchClasses = computed(() => keyPitchClass.value === null || props.keyRoot === NO_KEY
   ? new Set<number>()
-  : new Set(MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass.value + offset) % 12)))
+  : new Set(SCALES[props.scale ?? 'major'].offsets.map(offset => (keyPitchClass.value + offset) % 12)))
 const materialPitchClasses = computed(() => props.materialAmount === 0
   ? keyPitchClasses.value
   : props.materialPitchClasses
@@ -50,11 +50,11 @@ function noteName(n:number){
 }
 
 function isKeyNote(note: number) {
-  return Number.isInteger(note) && keyPitchClasses.value.has((note % 12 + 12) % 12)
+  return keyPitchClasses.value.has((note % 12 + 12) % 12)
 }
 
 function isMicrotoneNote(note: number) {
-  return props.microtonesEnabled === true && !Number.isInteger(note)
+  return !Number.isInteger(note)
 }
 
 function isAdditionalNote(note: number) {
@@ -67,7 +67,7 @@ function isExcludedNote(note: number) {
 
 function isSelectedNote(note: number) {
   return !isExcludedNote(note) && (
-    (Number.isInteger(note) && materialPitchClasses.value.has((note % 12 + 12) % 12)) ||
+    materialPitchClasses.value.has((note % 12 + 12) % 12) ||
     isAdditionalNote(note)
   )
 }

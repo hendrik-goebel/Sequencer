@@ -3,7 +3,7 @@ import { BROADCAST_OUTPUT_ID, clearScheduledOutput, initMidi, listOutputs, listI
 import { BROADCAST_CLOCK_ID, BROADCAST_CLOCK_NAME, createMidiClockInput, createMidiClockOutput, isBroadcastClockAvailable } from './midi/clockSync'
 import { Channel, createChannel, PlaybackMode, RandomToneMode, StoredArpeggiatorState } from './models/channel'
 import { isSustainedStep, Pattern, stepNotes, StepValue } from './models/arpeggiator'
-import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT } from './config'
+import { ARPEGGIO_OCTAVES, ARRANGEMENT_ROW_COUNT, ARRANGEMENT_SLOT_COUNT, DEFAULT_BPM, KEYBOARD_NOTE_OFFSETS, MAJOR_SCALE_OFFSETS, MICROTONAL_STEP, KEYS, NO_KEY, STEP_COUNT, MAX_LOOP_LENGTH, NOTE_LENGTH_OPTIONS, CircleOfFifthsKey, noteLengthToMilliseconds, STORED_STATE_COUNT, SCALES } from './config'
 import { MIDI } from './midi/constants'
 import { getToneMaterials } from './utils/toneMaterial'
 import { createMidiMixDefaultMappings, decodeMidiLearnMessage, isMidiLearnBinding, MidiLearnBinding, midiLearnBindingMatchesMessage, midiLearnMessageLabel, sanitizeMidiLearnBindings } from './midi/midiLearn'
@@ -344,8 +344,9 @@ export function useChannels() {
   function isKeyTone(channel: typeof channels[number], note: number) {
     const keyPitchClass = getKeyPitchClass(channel)
     if (keyPitchClass === null || channel.key === NO_KEY) return false
-    const keyPitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
-    return Number.isInteger(note) && keyPitchClasses.includes((note % 12 + 12) % 12)
+    const keyPitchClasses = SCALES[channel.scale ?? 'major'].offsets
+      .map(offset => (keyPitchClass + offset) % 12)
+    return keyPitchClasses.includes((note % 12 + 12) % 12)
   }
 
   function setGlobalBpm(bpm:number){
@@ -544,7 +545,8 @@ export function useChannels() {
     const keyPitchClass = KEYS.find(key => key.name === material.key)?.pitchClass
     if (material.key === NO_KEY || keyPitchClass === undefined) return
 
-    const keyPitchClasses = MAJOR_SCALE_OFFSETS.map(offset => (keyPitchClass + offset) % 12)
+    const keyPitchClasses = SCALES[material.scale ?? 'major'].offsets
+      .map(offset => (keyPitchClass + offset) % 12)
     const activePitchClasses = [...new Set(
       material.materialPitchClasses ?? keyPitchClasses
     )].filter(pitchClass => keyPitchClasses.includes(pitchClass))

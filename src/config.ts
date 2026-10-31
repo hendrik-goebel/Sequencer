@@ -23,6 +23,34 @@ export const ARPEGGIO_OCTAVES = Array.from({ length: 8 }, (_, index) => index + 
 export const NOTE_EDITOR_OCTAVES = ARPEGGIO_OCTAVES.length
 export const KEYBOARD_OCTAVE_SIZE = 12
 export const MAJOR_SCALE_OFFSETS = [0, 2, 4, 5, 7, 9, 11]
+export const SCALES = {
+  major: { label: 'Ionian (Major)', offsets: MAJOR_SCALE_OFFSETS },
+  dorian: { label: 'Dorian', offsets: [0, 2, 3, 5, 7, 9, 10] },
+  phrygian: { label: 'Phrygian', offsets: [0, 1, 3, 5, 7, 8, 10] },
+  lydian: { label: 'Lydian', offsets: [0, 2, 4, 6, 7, 9, 11] },
+  mixolydian: { label: 'Mixolydian', offsets: [0, 2, 4, 5, 7, 9, 10] },
+  aeolian: { label: 'Aeolian (Natural minor)', offsets: [0, 2, 3, 5, 7, 8, 10] },
+  locrian: { label: 'Locrian', offsets: [0, 1, 3, 5, 6, 8, 10] },
+  'melodic-minor': { label: 'Melodic minor', offsets: [0, 2, 3, 5, 7, 9, 11] },
+  'harmonic-minor': { label: 'Harmonic minor', offsets: [0, 2, 3, 5, 7, 8, 11] },
+  'phrygian-dominant': { label: 'Phrygian dominant', offsets: [0, 1, 4, 5, 7, 8, 10] },
+  'whole-tone': { label: 'Whole tone', offsets: [0, 2, 4, 6, 8, 10] },
+  'major-pentatonic': { label: 'Major pentatonic', offsets: [0, 2, 4, 7, 9] },
+  'minor-pentatonic': { label: 'Minor pentatonic', offsets: [0, 3, 5, 7, 10] },
+  'maqam-rast': { label: 'Maqam Rast (quarter-tone)', offsets: [0, 2, 3.5, 5, 7, 9, 10.5] },
+  'maqam-bayati': { label: 'Maqam Bayati (quarter-tone)', offsets: [0, 1.5, 3, 5, 7, 8, 10] },
+  mohanam: { label: 'Mohanam / Bhoopali', offsets: [0, 2, 4, 7, 9] },
+  'mohanam-quarter-tone': { label: 'Mohanam (experimental quarter-tone)', offsets: [0, 2.5, 4, 7, 9.5] },
+  hindolam: { label: 'Hindolam / Malkauns', offsets: [0, 3, 5, 8, 10] },
+  'hindolam-quarter-tone': { label: 'Hindolam (experimental quarter-tone)', offsets: [0, 3.5, 5, 8.5, 10] },
+  yaman: { label: 'Yaman / Kalyani', offsets: [0, 2, 4, 6, 7, 9, 11] },
+  'yaman-quarter-tone': { label: 'Yaman (experimental quarter-tone)', offsets: [0, 2, 4.5, 6, 7, 9, 11] },
+  bhairavi: { label: 'Bhairavi', offsets: [0, 1, 3, 5, 7, 8, 10] },
+  'bhairavi-quarter-tone': { label: 'Bhairavi (experimental quarter-tone)', offsets: [0, 1.5, 3.5, 5, 7, 8.5, 10.5] },
+  bhairav: { label: 'Bhairav', offsets: [0, 1, 4, 5, 7, 8, 11] },
+  'bhairav-quarter-tone': { label: 'Bhairav (experimental quarter-tone)', offsets: [0, 1.5, 4, 5, 7, 8.5, 11] }
+} as const
+export type ScaleName = keyof typeof SCALES
 export const MICROTONAL_STEP = 0.5
 export const KEYS = [
   { name: 'C', pitchClass: 0 },
