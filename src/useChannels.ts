@@ -1811,7 +1811,8 @@ export function useChannels() {
       quantisation: channel.quantisation,
       key: channel.key,
       microtonesEnabled: channel.microtonesEnabled,
-      playbackMode: channel.playbackMode
+      playbackMode: channel.playbackMode,
+      scale: channel.scale
     }
   }
 
@@ -1899,6 +1900,7 @@ export function useChannels() {
       typeof value.arpeggioLength === 'number' && Number.isFinite(value.arpeggioLength) &&
       typeof value.quantisation === 'number' && Number.isFinite(value.quantisation) &&
       typeof value.key === 'string' && (value.key === NO_KEY || KEYS.some(key => key.name === value.key)) &&
+      (!('scale' in value) || (typeof value.scale === 'string' && value.scale in SCALES)) &&
       (!('microtonesEnabled' in value) || typeof value.microtonesEnabled === 'boolean') &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode))
   }
@@ -1971,6 +1973,7 @@ export function useChannels() {
     channel.arpeggioLength = state.arpeggioLength
     channel.quantisation = state.quantisation
     channel.key = state.key
+    channel.scale = state.scale ?? channel.scale
     channel.materialAmount = state.materialAmount ?? MAJOR_SCALE_OFFSETS.length
     channel.materialPitchClasses = state.materialPitchClasses?.slice() ??
       createMaterialPitchClasses(channel.key, channel.materialAmount)
