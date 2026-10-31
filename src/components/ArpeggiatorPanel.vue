@@ -16,6 +16,7 @@ const props = defineProps<{
   activeStoredStateIndex: number | null
   activeArrangementStoredStateIndex: number | null
   arrangementRows: (number | null)[][]
+  arrangementRowActive: boolean[]
   arrangementReferenceMode: boolean
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
@@ -31,6 +32,7 @@ const emit = defineEmits<{
   (event: 'toggle-random-arrangement'): void
   (event: 'toggle-arrangement-reference-mode'): void
   (event: 'select-arrangement-row', rowIndex: number): void
+  (event: 'toggle-arrangement-row-active', rowIndex: number): void
   (event: 'select-arrangement-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'toggle-global-actions'): void
   (event: 'toggle-tone-material', note: number): void
@@ -365,6 +367,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
     </div>
     <PatternArranger
       :arrangement-rows="arrangementRows"
+      :arrangement-row-active="channel.arrangementRowActive"
       :active-arrangement-row-index="activeArrangementRowIndex"
       :active-arrangement-slot-index="activeArrangementSlotIndex"
       :selected-arrangement-row-index="selectedArrangementRowIndex"
@@ -377,6 +380,7 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
       @move-slot="$emit('arrangement-move-slot', $event)"
       @clear-slot="$emit('arrangement-clear-slot', $event)"
       @select-row="$emit('select-arrangement-row', $event)"
+      @toggle-row-active="$emit('toggle-arrangement-row-active', $event)"
       @select-slot="$emit('select-arrangement-slot', $event)"
       @add-row="$emit('add-arrangement-row')"
       @toggle-playback-mode="$emit('toggle-arrangement-playback')"

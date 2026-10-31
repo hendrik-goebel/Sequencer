@@ -40,6 +40,7 @@ interface SeedChannelState extends StoredArpeggiatorState {
   randomArrangement?: boolean
   arrangementSlots?: (number | null)[]
   arrangementRows?: (number | null)[][]
+  arrangementRowActive?: boolean[]
   arrangementRowIndex?: number | null
   arrangementIndex?: number | null
 }
@@ -291,7 +292,7 @@ export function useChannels() {
     if (channel.randomArrangement && channel.arrangementIndex !== null && nextSlot <= channel.arrangementIndex) {
       const playableRows = channel.arrangementRows
         .map((row, rowIndex) => ({ row, rowIndex }))
-        .filter(({ row }) => row.some(stateIndex => isValidStoredStateIndex(stateIndex) && !!storedStates.value[channel.id][stateIndex]))
+        .filter(({ row, rowIndex }) => channel.arrangementRowActive[rowIndex] && row.some(stateIndex => isValidStoredStateIndex(stateIndex) && !!storedStates.value[channel.id][stateIndex]))
       if (playableRows.length) {
         const nextRows = playableRows.filter(({ rowIndex }) => rowIndex !== currentRowIndex)
         const choices = nextRows.length ? nextRows : playableRows
@@ -1839,6 +1840,7 @@ export function useChannels() {
       arrangementReferenceMode: channel.arrangementReferenceMode,
       randomArrangement: channel.randomArrangement,
       arrangementRows: channel.arrangementRows.map(row => row.slice()),
+      arrangementRowActive: channel.arrangementRowActive.slice(),
       arrangementRowIndex: channel.arrangementRowIndex,
       arrangementIndex: channel.arrangementIndex
     }
@@ -1915,6 +1917,7 @@ export function useChannels() {
       (!('randomArrangement' in value) || typeof value.randomArrangement === 'boolean') &&
       (!('arrangementSlots' in value) || (Array.isArray(value.arrangementSlots) && ([8, STORED_STATE_COUNT, ARRANGEMENT_SLOT_COUNT].includes(value.arrangementSlots.length)) && value.arrangementSlots.every(slot => slot === null || isValidStoredStateIndex(slot)))) &&
       (!('arrangementRows' in value) || (Array.isArray(value.arrangementRows) && value.arrangementRows.length >= 1 && value.arrangementRows.length <= ARRANGEMENT_ROW_COUNT && value.arrangementRows.every(row => Array.isArray(row) && row.length === ARRANGEMENT_SLOT_COUNT && row.every(slot => slot === null || isValidStoredStateIndex(slot))))) &&
+      (!('arrangementRowActive' in value) || (Array.isArray(value.arrangementRowActive) && value.arrangementRowActive.length <= ARRANGEMENT_ROW_COUNT && value.arrangementRowActive.every(active => typeof active === 'boolean'))) &&
       (!('arrangementRowIndex' in value) || value.arrangementRowIndex === null || (typeof value.arrangementRowIndex === 'number' && Number.isInteger(value.arrangementRowIndex) && value.arrangementRowIndex >= 0 && value.arrangementRowIndex < ARRANGEMENT_ROW_COUNT)) &&
       (!('arrangementIndex' in value) || value.arrangementIndex === null || (typeof value.arrangementIndex === 'number' && Number.isInteger(value.arrangementIndex) && value.arrangementIndex >= 0 && value.arrangementIndex < ARRANGEMENT_SLOT_COUNT))
   }
@@ -2024,6 +2027,7 @@ export function useChannels() {
       channel.arrangementReferenceMode = state.arrangementReferenceMode ?? true
       channel.randomArrangement = state.randomArrangement ?? false
       channel.arrangementRows = createArrangementRows(state.arrangementRows, state.arrangementSlots)
+      channel.arrangementRowActive = channel.arrangementRows.map((_, rowIndex) => state.arrangementRowActive?.[rowIndex] ?? true)
       channel.arrangementRowIndex = typeof state.arrangementRowIndex === 'number'
         ? Math.max(0, Math.min(ARRANGEMENT_ROW_COUNT - 1, Math.floor(state.arrangementRowIndex)))
         : null
@@ -2228,6 +2232,7 @@ export function useChannels() {
     target.arrangementReferenceMode = source.arrangementReferenceMode
     target.randomArrangement = source.randomArrangement
     target.arrangementRows = source.arrangementRows.map(row => row.slice())
+    target.arrangementRowActive = source.arrangementRowActive.slice()
     target.arrangementRowIndex = source.arrangementRowIndex
     target.arrangementIndex = source.arrangementIndex
     target.muted = source.muted
@@ -2303,6 +2308,7 @@ export function useChannels() {
     const channel = channels[channelIndex]
     if (!channel) return
     channel.arrangementRows = createArrangementRows(undefined, slots)
+    channel.arrangementRowActive = channel.arrangementRows.map(() => true)
     normalizeArrangement(channel)
   }
 
@@ -2310,6 +2316,13 @@ export function useChannels() {
     const channel = channels[channelIndex]
     if (!channel || channel.arrangementRows.length >= ARRANGEMENT_ROW_COUNT) return
     channel.arrangementRows.push(createArrangementSlots())
+    channel.arrangementRowActive.push(true)
+  }
+
+  function toggleArrangementRowActive(channelIndex: number, rowIndex: number) {
+    const channel = channels[channelIndex]
+    if (!channel || rowIndex < 0 || rowIndex >= channel.arrangementRows.length) return
+    channel.arrangementRowActive[rowIndex] = !channel.arrangementRowActive[rowIndex]
   }
 
   function setClockOutput(id: string | null) {
@@ -2433,6 +2446,7 @@ export function useChannels() {
     moveArrangementSlotToStoredState,
     setArrangementSlots,
     addArrangementRow,
+    toggleArrangementRowActive,
     setArrangementRow,
     selectArrangementSlot,
     setPlaybackMode,

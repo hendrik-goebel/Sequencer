@@ -47,6 +47,7 @@ export interface Channel {
   arrangementReferenceMode: boolean
   randomArrangement: boolean
   arrangementRows: ArrangementSlot[][]
+  arrangementRowActive: boolean[]
   arrangementRowIndex: number | null
   arrangementIndex: number | null
   arpeggiator: ReturnType<typeof createArpeggiator>
@@ -131,6 +132,7 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     arrangementRows: Array.from({ length: 1 }, () =>
       Array.from({ length: ARRANGEMENT_SLOT_COUNT }, () => null)
     ) as ArrangementSlot[][],
+    arrangementRowActive: [true],
     arrangementRowIndex: null as number | null,
     arrangementIndex: null as number | null,
     arpeggiator,

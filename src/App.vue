@@ -35,6 +35,7 @@
       :active-arrangement-stored-state-index="currentActiveArrangementStateIndex"
       :follow-arrangement-view="currentChannel.followArrangementView"
       :arrangement-rows="currentChannel.arrangementRows"
+      :arrangement-row-active="currentChannel.arrangementRowActive"
       :arrangement-reference-mode="currentChannel.arrangementReferenceMode"
       :active-arrangement-row-index="currentChannel.arrangementRowIndex"
       :active-arrangement-slot-index="currentChannel.arrangementIndex"
@@ -60,6 +61,7 @@
       @add-stored-state-row="handleAddStoredStateRow"
       @zoom-grid="zoomGrid"
       @select-arrangement-row="handleSelectArrangementRow"
+      @toggle-arrangement-row-active="handleToggleArrangementRowActive"
       @select-arrangement-slot="handleSelectArrangementSlot"
       @add-arrangement-row="handleAddArrangementRow"
       @toggle-arrangement-playback="handleToggleArrangementPlayback"
@@ -223,6 +225,7 @@ const {
   setArrangementRow,
   selectArrangementSlot,
   addArrangementRow,
+  toggleArrangementRowActive,
   toggleArrangementPlayback,
   toggleRandomArrangement,
   toggleArrangementReferenceMode,
@@ -414,6 +417,11 @@ function handleSelectArrangementSlot(payload: { rowIndex: number, slotIndex: num
 function handleAddArrangementRow() {
   if (globalActions.value) channels.forEach((_, index) => addArrangementRow(index))
   else addArrangementRow(currentIndex.value)
+}
+
+function handleToggleArrangementRowActive(rowIndex: number) {
+  if (globalActions.value) channels.forEach((_, index) => toggleArrangementRowActive(index, rowIndex))
+  else toggleArrangementRowActive(currentIndex.value, rowIndex)
 }
 
 function handleToggleArrangementPlayback() {

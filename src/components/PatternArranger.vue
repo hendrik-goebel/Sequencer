@@ -30,13 +30,16 @@
 
     <div class="rows">
       <div v-for="(row, rowIndex) in arrangementRows" :key="rowIndex" class="arrangement-row">
-        <button
-          type="button"
-          class="enabled-button"
-          :class="{ active: activeArrangementRowIndex === rowIndex }"
-          :aria-pressed="activeArrangementRowIndex === rowIndex"
-          @click="$emit('select-row', rowIndex)"
-        >Enabled</button>
+        <div class="row-actions">
+          <button type="button" class="row-select-button" :class="{ active: activeArrangementRowIndex === rowIndex }" @click="$emit('select-row', rowIndex)">Row {{ rowIndex + 1 }}</button>
+          <button
+            type="button"
+            class="enabled-button"
+            :class="{ active: arrangementRowActive[rowIndex] }"
+            :aria-pressed="arrangementRowActive[rowIndex]"
+            @click="$emit('toggle-row-active', rowIndex)"
+          >{{ arrangementRowActive[rowIndex] ? 'On' : 'Off' }}</button>
+        </div>
         <div class="slots">
           <button
             v-for="(slot, slotIndex) in row"
@@ -69,6 +72,7 @@ const DRAG_TYPE = 'application/x-arpeggiator-arrangement'
 
 const props = defineProps<{
   arrangementRows: (number | null)[][]
+  arrangementRowActive: boolean[]
   activeArrangementRowIndex: number | null
   activeArrangementSlotIndex: number | null
   selectedArrangementRowIndex: number | null
@@ -84,6 +88,7 @@ const emit = defineEmits<{
   (event: 'move-slot', payload: { fromRowIndex: number, fromIndex: number, toRowIndex: number, toIndex: number }): void
   (event: 'clear-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'select-row', rowIndex: number): void
+  (event: 'toggle-row-active', rowIndex: number): void
   (event: 'select-slot', payload: { rowIndex: number, slotIndex: number }): void
   (event: 'add-row'): void
   (event: 'toggle-playback-mode'): void
@@ -262,6 +267,28 @@ function clearSlot(rowIndex: number, slotIndex: number) {
   grid-template-columns: 4.5rem minmax(0, 1fr);
   align-items: center;
   gap: .6rem;
+}
+
+.row-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .25rem;
+}
+
+.row-select-button {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: .35rem .3rem;
+  background: #1c2a33;
+  color: var(--text-muted);
+  font-size: .55rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.row-select-button.active {
+  border-color: var(--gold);
+  color: var(--gold);
 }
 
 .slots {
