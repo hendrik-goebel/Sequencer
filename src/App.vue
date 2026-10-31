@@ -48,6 +48,8 @@
       @update-random-note-probability="updateRandomNoteProbability"
       @update-random-pause-probability="updateRandomPauseProbability"
       @update-random-timing-variation="updateRandomTimingVariation"
+      @update-random-rhythm-variation="updateRandomRhythmVariation"
+      @update-random-quantisation-variation="updateRandomQuantisationVariation"
       @update-random-velocity-variation="updateRandomVelocityVariation"
       @update-random-tone-mode="updateRandomToneMode"
       @update-random-chord-probability="updateRandomChordProbability"
@@ -152,6 +154,8 @@ const {
   updateRandomNoteProbability,
   updateRandomPauseProbability,
   updateRandomTimingVariation,
+  updateRandomRhythmVariation,
+  updateRandomQuantisationVariation,
   updateRandomVelocityVariation,
   updateRandomToneMode,
   updateRandomChordProbability,

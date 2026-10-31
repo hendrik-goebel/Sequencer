@@ -1,7 +1,7 @@
 import { markRaw, reactive, Ref } from 'vue'
-import { createArpeggiator, Pattern, StepValue } from './arpeggiator'
+import { createArpeggiator, Pattern, StepValue, stepNotes } from './arpeggiator'
 import { sendNote } from '../midi/midi'
-import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, KEYS, MAJOR_SCALE_OFFSETS, SCALES, ScaleName, MICROTONAL_STEP, CircleOfFifthsKey } from '../config'
+import { ARRANGEMENT_SLOT_COUNT, DEFAULT_ARPEGGIO_OCTAVE, DEFAULT_NOTES, DEFAULT_STEPS, DEFAULT_BASE, DEFAULT_BPM, DEFAULT_NOTE_LENGTH, DEFAULT_QUANT, KEYS, MAJOR_SCALE_OFFSETS, SCALES, ScaleName, MICROTONAL_STEP, CircleOfFifthsKey, noteLengthToMilliseconds } from '../config'
 import { getToneMaterials } from '../utils/toneMaterial'
 
 export type ArrangementSlot = number | null
@@ -26,6 +26,8 @@ export interface Channel {
   randomNoteProbability: number
   randomPauseProbability: number
   randomTimingVariation: number
+  randomRhythmVariation: number
+  randomQuantisationVariation: number
   randomVelocityVariation: number
   randomToneMode: RandomToneMode
   randomChordProbability: number
@@ -109,6 +111,8 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     randomNoteProbability: 0,
     randomPauseProbability: 0,
     randomTimingVariation: 0,
+    randomRhythmVariation: 0,
+    randomQuantisationVariation: 0,
     randomVelocityVariation: 0,
     randomToneMode: 'material' as RandomToneMode,
     randomChordProbability: 0,
@@ -141,6 +145,17 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
     playStep: null as number | null,
     toneMaterialCursor: null as number | null
   }) as Channel
+
+  let variedQuantisationSteps = new Set<number>()
+  const chooseVariedQuantisationSteps = () => {
+    const candidates = channel.steps.flatMap((step, index) => stepNotes(step).length ? [index] : [])
+    const count = Math.min(candidates.length, Math.max(0, Math.floor(channel.randomQuantisationVariation)))
+    for (let index = candidates.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1))
+      ;[candidates[index], candidates[swapIndex]] = [candidates[swapIndex], candidates[index]]
+    }
+    variedQuantisationSteps = new Set(candidates.slice(0, count))
+  }
 
   arpeggiator.on('note', (payload) => {
     if (Math.random() < channel.randomPauseProbability) return
@@ -188,7 +203,12 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
       : velocity
     const timingOffset = Math.round(Math.random() * channel.randomTimingVariation)
     const scheduledAt = payload.scheduledAt + timingOffset
-    const { length } = payload
+    const rhythmLengthDenominators = [8, 9, 16, 32]
+    const varyRhythm = Math.random() < channel.randomRhythmVariation / 100
+    const durationMultiplier = payload.length / noteLengthToMilliseconds(channel.noteLength, channel.bpm)
+    const length = varyRhythm
+      ? noteLengthToMilliseconds(rhythmLengthDenominators[Math.floor(Math.random() * rhythmLengthDenominators.length)], channel.bpm) * durationMultiplier
+      : payload.length
     const visualDelay = Math.max(0, scheduledAt - performance.now())
     setTimeout(() => {
       if (channel.playing) channel.active = true
@@ -208,6 +228,13 @@ export function createChannel(index: number, selectedOutputId: Ref<string | null
 
   arpeggiator.on('tick', (payload) => {
     const { stepIndex } = payload
+    if (stepIndex === 0) chooseVariedQuantisationSteps()
+    let quantisation = channel.quantisation
+    if (channel.randomQuantisationVariation > 0 && variedQuantisationSteps.has(stepIndex)) {
+      const alternatives = [8, 9, 16, 32].filter(value => value !== channel.quantisation)
+      quantisation = alternatives[Math.floor(Math.random() * alternatives.length)]
+    }
+    arpeggiator.setSubdivision(quantisation)
     const visualDelay = Math.max(0, payload.scheduledAt - performance.now())
     setTimeout(() => {
       if (channel.playing) channel.playStep = stepIndex

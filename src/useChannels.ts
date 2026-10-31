@@ -34,6 +34,8 @@ interface MidiLearnStateSnapshot {
 interface SeedChannelState extends StoredArpeggiatorState {
   midiChannel: number
   muted: boolean
+  randomRhythmVariation?: number
+  randomQuantisationVariation?: number
   playbackMode?: PlaybackMode
   followArrangementView?: boolean
   arrangementReferenceMode?: boolean
@@ -643,6 +645,14 @@ export function useChannels() {
 
   function updateRandomTimingVariation(value: number) {
     currentChannel.value.randomTimingVariation = Math.max(0, Math.min(100, value))
+  }
+
+  function updateRandomRhythmVariation(value: number) {
+    currentChannel.value.randomRhythmVariation = Math.max(0, Math.min(100, value))
+  }
+
+  function updateRandomQuantisationVariation(value: number) {
+    currentChannel.value.randomQuantisationVariation = Math.max(0, Math.min(32, Math.floor(value)))
   }
 
   function updateRandomVelocityVariation(value: number) {
@@ -1836,6 +1846,8 @@ export function useChannels() {
       ...snapshotChannelState(channel),
       midiChannel: channel.midiChannel,
       muted: channel.muted,
+      randomRhythmVariation: channel.randomRhythmVariation,
+      randomQuantisationVariation: channel.randomQuantisationVariation,
       followArrangementView: channel.followArrangementView,
       arrangementReferenceMode: channel.arrangementReferenceMode,
       randomArrangement: channel.randomArrangement,
@@ -1912,6 +1924,8 @@ export function useChannels() {
       typeof value.midiChannel === 'number' && Number.isInteger(value.midiChannel) &&
       value.midiChannel >= 1 && value.midiChannel <= 16 &&
       typeof value.muted === 'boolean' &&
+      (!('randomRhythmVariation' in value) || (typeof value.randomRhythmVariation === 'number' && Number.isFinite(value.randomRhythmVariation) && value.randomRhythmVariation >= 0 && value.randomRhythmVariation <= 100)) &&
+      (!('randomQuantisationVariation' in value) || (typeof value.randomQuantisationVariation === 'number' && Number.isInteger(value.randomQuantisationVariation) && value.randomQuantisationVariation >= 0 && value.randomQuantisationVariation <= 32)) &&
       (!('playbackMode' in value) || isPlaybackMode(value.playbackMode)) &&
       (!('followArrangementView' in value) || typeof value.followArrangementView === 'boolean') &&
       (!('randomArrangement' in value) || typeof value.randomArrangement === 'boolean') &&
@@ -2022,6 +2036,8 @@ export function useChannels() {
       const channel = channels[index]
       channel.midiChannel = state.midiChannel
       channel.muted = state.muted
+      channel.randomRhythmVariation = state.randomRhythmVariation ?? 0
+      channel.randomQuantisationVariation = state.randomQuantisationVariation ?? 0
       channel.playbackMode = state.playbackMode ?? 'state'
       channel.followArrangementView = state.followArrangementView ?? false
       channel.arrangementReferenceMode = state.arrangementReferenceMode ?? true
@@ -2214,6 +2230,8 @@ export function useChannels() {
     target.randomNoteProbability = source.randomNoteProbability
     target.randomPauseProbability = source.randomPauseProbability
     target.randomTimingVariation = source.randomTimingVariation
+    target.randomRhythmVariation = source.randomRhythmVariation
+    target.randomQuantisationVariation = source.randomQuantisationVariation
     target.randomVelocityVariation = source.randomVelocityVariation
     target.randomToneMode = source.randomToneMode
     target.randomChordProbability = source.randomChordProbability
@@ -2368,6 +2386,8 @@ export function useChannels() {
     updateRandomNoteProbability,
     updateRandomPauseProbability,
     updateRandomTimingVariation,
+    updateRandomRhythmVariation,
+    updateRandomQuantisationVariation,
     updateRandomVelocityVariation,
     updateRandomToneMode,
     updateRandomChordProbability,

@@ -54,6 +54,8 @@ const emit = defineEmits<{
   (event: 'update-random-note-probability', value: number): void
   (event: 'update-random-pause-probability', value: number): void
   (event: 'update-random-timing-variation', value: number): void
+  (event: 'update-random-rhythm-variation', value: number): void
+  (event: 'update-random-quantisation-variation', value: number): void
   (event: 'update-random-velocity-variation', value: number): void
   (event: 'update-random-tone-mode', value: string): void
   (event: 'update-random-chord-probability', value: number): void
@@ -287,6 +289,20 @@ function moveArrangementSlotToStoredState(stateIndex: number, event: DragEvent) 
           </span>
         </label>
         <div class="randomization-variation-row">
+          <label class="randomization-control">
+            <span>Rhythm variation</span>
+            <span class="randomization-slider-row">
+              <input type="range" min="0" max="32" step="1" :value="visualChannel.randomQuantisationVariation" aria-label="Number of notes with quantisation variation per loop" @input="$emit('update-random-quantisation-variation', +($event.target as HTMLInputElement).value)" />
+              <output>{{ visualChannel.randomQuantisationVariation }} notes</output>
+            </span>
+          </label>
+          <label class="randomization-control">
+            <span>Length variation</span>
+            <span class="randomization-slider-row">
+              <input type="range" min="0" max="100" step="1" :value="visualChannel.randomRhythmVariation" aria-label="Length variation probability" @input="$emit('update-random-rhythm-variation', +($event.target as HTMLInputElement).value)" />
+              <output>{{ visualChannel.randomRhythmVariation }}%</output>
+            </span>
+          </label>
           <label class="randomization-control">
             <span>Timing variation</span>
             <span class="randomization-slider-row">

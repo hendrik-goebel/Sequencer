@@ -23,7 +23,7 @@ export function stepNotes(value: StepValue | undefined): number[] {
 export type ArpeggiatorEvents = {
   tick: { stepIndex: number, noteIndex: number, pattern: Pattern, scheduledAt: number }
   loop: { stepIndex: number }
-  note: { note: number, velocity: number, length: number, scheduledAt: number }
+  note: { note: number, velocity: number, length: number, scheduledAt: number, stepIndex: number }
   start: { stepIndex: number }
   stop: void
 }
@@ -102,7 +102,8 @@ export function createArpeggiator() {
           note,
           velocity: velocities[currentStep] ?? MIDI.VELOCITY_MAX,
           length: getNoteLengthMilliseconds() * duration,
-          scheduledAt
+          scheduledAt,
+          stepIndex: currentStep
         })
       })
     }
